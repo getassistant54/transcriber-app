@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install dependencies first for fast caching
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copy source code and build Vite app + bundled Express server
 COPY . .
@@ -17,7 +17,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy compiled artifacts from builder stage
 COPY --from=builder /app/dist ./dist
