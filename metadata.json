@@ -1,0 +1,6 @@
+{
+  "name": "Видео Расшифровщик & Аналитик",
+  "description": "Транскрибация и AI-анализ видео и аудио по ссылкам YouTube, Rutube, Яндекс Диск, Google Диск с экспортом в Google Docs",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
