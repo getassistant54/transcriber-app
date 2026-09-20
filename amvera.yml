@@ -8,7 +8,9 @@ build:
   commands:
     - npm install
     - npm run build
+  artifacts:
+    - dist
 
 run:
-  command: npm run start
+  command: node dist/server.cjs
   containerPort: 3000

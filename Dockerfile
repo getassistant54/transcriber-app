@@ -16,12 +16,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-COPY package*.json ./
-RUN npm install --omit=dev
-
-# Copy compiled artifacts from builder stage
+# Copy compiled artifacts from builder stage (server.cjs is fully self-contained)
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-CMD ["npx", "tsx", "server.ts"]
+CMD ["node", "dist/server.cjs"]
