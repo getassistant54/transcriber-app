@@ -16,9 +16,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy compiled artifacts from builder stage (server.cjs is fully self-contained)
+# Copy compiled artifacts from builder stage
+COPY --from=builder /app/package*.json ./
+RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-CMD ["node", "dist/server.cjs"]
+CMD ["node", "--max-old-space-size=200", "dist/server.cjs"]

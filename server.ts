@@ -718,19 +718,27 @@ app.post('/api/admin/users/:id/update', (req, res) => {
 
 // Vite Setup for Development / Static Production Serving
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
+  const distPath = path.join(process.cwd(), 'dist');
+  const hasDist = await import('fs').then(fs => fs.existsSync(path.join(distPath, 'index.html'))).catch(() => false);
+
+  if (process.env.NODE_ENV === 'production' || hasDist) {
+    console.log(`📦 Раздача статических файлов из ${distPath}`);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
+  } else {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (e) {
+      console.warn('Vite not available, falling back to static:', e);
+      app.use(express.static(distPath));
+    }
   }
 
   app.listen(PORT, '0.0.0.0', () => {
