@@ -24,4 +24,4 @@ COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
 
-CMD ["node", "dist/server.cjs"]
+CMD ["npx", "tsx", "server.ts"]
