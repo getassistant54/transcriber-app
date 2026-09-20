@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
+import { YoutubeTranscript } from 'youtube-transcript';
 import {
   TranscriptionRecord,
   AdminSettings,
@@ -47,7 +49,7 @@ let adminSettings: AdminSettings = {
   usdToRubRate: 92.5,
   aiProvider: (process.env.AI_PROVIDER as 'gemini' | 'hydra') || 'gemini',
   activeModel: process.env.AI_MODEL || 'gemini-2.5-flash',
-  hydraBaseUrl: process.env.HYDRA_BASE_URL || 'https://api.hydra-ai.ru/v1',
+  hydraBaseUrl: process.env.HYDRA_BASE_URL || 'https://api.hydraai.ru/v1',
   hydraModel: process.env.HYDRA_DEFAULT_MODEL || 'gemini-2.5-flash',
   customSystemPrompt: `Ты — экспертный ИИ-транскрибатор и бизнес-аналитик высшего класса. Твоя задача — создать безупречную транскрипцию видео/аудио и глубокий, структурированный бизнес-анализ.`,
   corporateDomainWhitelist: ['company.ru', 'corporation.com', 'tech.io'],
@@ -214,6 +216,12 @@ function parseVideoLinkInfo(url: string): { platform: VideoPlatform; title: stri
   }
 }
 
+function formatTimestamp(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
 // API Routes
 
 app.get('/api/health', (req, res) => {
@@ -342,7 +350,32 @@ app.post('/api/transcribe', async (req, res) => {
       linkInfo.title = customTitle;
     }
 
-    const durationSeconds = linkInfo.simulatedDuration;
+    let realTranscriptText = rawText || '';
+    let durationSeconds = linkInfo.simulatedDuration;
+    let isRealSubtitles = false;
+
+    // Fetch real subtitles for YouTube
+    if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+      try {
+        console.log(`[YouTube] Запрос реальных субтитров для: ${url}`);
+        const transcriptItems = await YoutubeTranscript.fetchTranscript(url);
+        if (transcriptItems && transcriptItems.length > 0) {
+          const lastItem = transcriptItems[transcriptItems.length - 1];
+          durationSeconds = Math.max(30, Math.round((lastItem.offset + lastItem.duration) / 1000));
+          
+          realTranscriptText = transcriptItems.map(item => {
+            const sec = Math.round(item.offset / 1000);
+            return `[${formatTimestamp(sec)}] ${item.text}`;
+          }).join('\n');
+
+          isRealSubtitles = true;
+          console.log(`[YouTube] Успешно получено ${transcriptItems.length} строк субтитров, длительность: ~${Math.round(durationSeconds / 60)} мин.`);
+        }
+      } catch (ytErr: any) {
+        console.warn(`[YouTube] Не удалось автоматически получить субтитры: ${ytErr.message}`);
+      }
+    }
+
     const durationMinutes = Math.round((durationSeconds / 60) * 10) / 10;
 
     // Preset Prompts mapping
@@ -361,7 +394,11 @@ app.post('/api/transcribe', async (req, res) => {
 Стиль анализа: ${presetInstructions[preset as AnalysisPreset] || presetInstructions.meeting}.
 
 Формат входных данных или контекста:
-${rawText ? `Текст или фрагмент: "${rawText.slice(0, 5000)}"` : `Видеозапись длительностью около ${durationMinutes} минут с подробным обсуждением рабочих задач, планов, докладов и ответов на вопросы.`}
+${realTranscriptText ? `РЕАЛЬНЫЙ ТЕКСТ СТЕНОГРАММЫ С ТАЙМКОДАМИ ИЗ ВИДЕО:
+"""
+${realTranscriptText.slice(0, 45000)}
+"""
+ВНИМАНИЕ: Опирайся СТРОГО на предоставленный реальный текст выше! Сохраняй реальные таймкоды, извлекай реальные задачи и цитаты спикеров. Не выдумывай факты!` : `Видеозапись длительностью около ${durationMinutes} минут с подробным обсуждением рабочих задач, планов, докладов и ответов на вопросы.`}
 
 ВАЖНО: Верни ответ СТРОГО в формате JSON со следующими полями:
 {
@@ -395,8 +432,8 @@ ${rawText ? `Текст или фрагмент: "${rawText.slice(0, 5000)}"` : 
 
     // Provider Branch: Hydra AI (OpenAI-compatible) vs Google GenAI SDK
     if (adminSettings.aiProvider === 'hydra') {
-      const hydraApiKey = process.env.HYDRA_API_KEY || process.env.OPENAI_API_KEY || '';
-      const hydraBaseUrl = adminSettings.hydraBaseUrl || process.env.HYDRA_BASE_URL || 'https://api.hydra-ai.ru/v1';
+      const hydraApiKey = process.env.HYDRA_API_KEY || process.env.HYDRA_AI_API_KEY || process.env.OPENAI_API_KEY || '';
+      const hydraBaseUrl = adminSettings.hydraBaseUrl || process.env.HYDRA_BASE_URL || 'https://api.hydraai.ru/v1';
       const hydraModel = adminSettings.hydraModel || process.env.HYDRA_DEFAULT_MODEL || 'gemini-2.5-flash';
       actualModelUsed = `hydra:${hydraModel}`;
 
@@ -577,7 +614,7 @@ ${rawText ? `Текст или фрагмент: "${rawText.slice(0, 5000)}"` : 
       preset: preset as AnalysisPreset,
       language,
       createdAt: new Date().toISOString(),
-      verbatimTranscript: parsedResponse.verbatimTranscript || '',
+      verbatimTranscript: parsedResponse.verbatimTranscript || realTranscriptText || '',
       segments: parsedResponse.segments || [],
       analysis,
       tokenCost,
