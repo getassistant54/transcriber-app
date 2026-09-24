@@ -38,73 +38,156 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
   <meta charset="utf-8">
   <title>${docTitle}</title>
   <style>
-    body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 800px; margin: 20px auto; padding: 0 15px; }
-    h1 { color: #1e3a8a; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; font-size: 24px; }
-    h2 { color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 18px; }
-    .meta { background-color: #f8fafc; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; border: 1px solid #e2e8f0; }
-    .summary-box { background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px; border-radius: 4px; margin: 16px 0; }
-    .task-item { margin-bottom: 6px; padding: 6px 10px; background: #f9fafb; border-radius: 4px; border: 1px solid #e5e7eb; }
-    .chapter-time { color: #2563eb; font-weight: bold; }
-    .segment-time { color: #64748b; font-family: monospace; font-size: 12px; }
-    .speaker-name { font-weight: bold; color: #1e40af; }
+    * {
+      font-family: Arial, Helvetica, sans-serif !important;
+    }
+    body, div, p, h1, h2, h3, span, li, ul, ol, b, strong, i, em, a {
+      font-family: Arial, Helvetica, sans-serif !important;
+    }
+    body {
+      font-family: Arial, Helvetica, sans-serif !important;
+      line-height: 1.6;
+      color: #1a1a1a;
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 0 15px;
+      font-size: 11pt;
+    }
+    h1 {
+      font-family: Arial, Helvetica, sans-serif !important;
+      color: #1e3a8a;
+      border-bottom: 2px solid #3b82f6;
+      padding-bottom: 8px;
+      font-size: 18pt;
+      margin-top: 10px;
+    }
+    h2 {
+      font-family: Arial, Helvetica, sans-serif !important;
+      color: #1d4ed8;
+      margin-top: 24px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 4px;
+      font-size: 13pt;
+    }
+    p, li {
+      font-family: Arial, Helvetica, sans-serif !important;
+      font-size: 11pt;
+      line-height: 1.6;
+    }
+    .meta {
+      font-family: Arial, Helvetica, sans-serif !important;
+      background-color: #f8fafc;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 10pt;
+      border: 1px solid #e2e8f0;
+    }
+    .summary-box {
+      font-family: Arial, Helvetica, sans-serif !important;
+      background-color: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 14px;
+      border-radius: 4px;
+      margin: 16px 0;
+    }
+    .task-item {
+      font-family: Arial, Helvetica, sans-serif !important;
+      margin-bottom: 6px;
+      padding: 6px 10px;
+      background: #f9fafb;
+      border-radius: 4px;
+      border: 1px solid #e5e7eb;
+      font-size: 10.5pt;
+    }
+    .chapter-time {
+      font-family: Arial, Helvetica, sans-serif !important;
+      color: #2563eb;
+      font-weight: bold;
+    }
+    .segment-time {
+      font-family: Arial, Helvetica, sans-serif !important;
+      color: #64748b;
+      font-size: 10pt;
+    }
+    .speaker-name {
+      font-family: Arial, Helvetica, sans-serif !important;
+      font-weight: bold;
+      color: #1e40af;
+    }
   </style>
 </head>
-<body>
-  <h1>📄 ${docTitle}</h1>
-  <div class="meta">
-    <p><strong>Источник:</strong> <a href="${record.sourceUrl}">${record.sourceUrl}</a> (${record.platform.toUpperCase()})</p>
-    <p><strong>Дата создания:</strong> ${new Date(record.createdAt).toLocaleDateString('ru-RU')} | <strong>Длительность:</strong> ~${Math.round(record.durationSeconds / 60)} мин | <strong>Язык:</strong> ${record.language}</p>
-  </div>
+<body style="font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.6; color: #1a1a1a;">
+  <div style="font-family: Arial, Helvetica, sans-serif;">
+    <h1 style="font-family: Arial, Helvetica, sans-serif; color: #1e3a8a; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; font-size: 18pt;">
+      📄 ${docTitle}
+    </h1>
+    
+    <div class="meta" style="font-family: Arial, Helvetica, sans-serif; background-color: #f8fafc; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 10pt; border: 1px solid #e2e8f0;">
+      <p style="font-family: Arial, Helvetica, sans-serif; margin: 0 0 6px 0;"><strong>Источник:</strong> <a href="${record.sourceUrl}">${record.sourceUrl}</a> (${record.platform.toUpperCase()})</p>
+      <p style="font-family: Arial, Helvetica, sans-serif; margin: 0;"><strong>Дата создания:</strong> ${new Date(record.createdAt).toLocaleDateString('ru-RU')} | <strong>Длительность:</strong> ~${Math.round(record.durationSeconds / 60)} мин | <strong>Язык:</strong> ${record.language}</p>
+    </div>
 
-  <h2>📌 Краткое содержание (Саммари)</h2>
-  <div class="summary-box">
-    <p>${record.analysis.summary.replace(/\n/g, '<br>')}</p>
-  </div>
+    <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
+      📌 Краткое содержание (Саммари)
+    </h2>
+    <div class="summary-box" style="font-family: Arial, Helvetica, sans-serif; background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px; border-radius: 4px; margin: 16px 0;">
+      <p style="font-family: Arial, Helvetica, sans-serif; margin: 0; line-height: 1.6;">${record.analysis.summary.replace(/\n/g, '<br>')}</p>
+    </div>
 
-  <h2>💡 Главные выводы</h2>
-  <ul>
-    ${record.analysis.mainTakeaways.map((t) => `<li>${t}</li>`).join('')}
-  </ul>
+    <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
+      💡 Главные выводы
+    </h2>
+    <ul style="font-family: Arial, Helvetica, sans-serif; padding-left: 20px; line-height: 1.6;">
+      ${record.analysis.mainTakeaways.map((t) => `<li style="font-family: Arial, Helvetica, sans-serif; margin-bottom: 4px;">${t}</li>`).join('')}
+    </ul>
 
-  <h2>✅ Поручения и Задачи (Action Items)</h2>
-  <div>
-    ${record.analysis.actionItems
-      .map(
-        (a) => `
-      <div class="task-item">
-        <b>[${a.priority === 'high' ? 'ВЫСОКИЙ' : 'ОБЫЧНЫЙ'}]</b> ${a.task}
-        ${a.assignee ? `<i>(Ответственный: ${a.assignee})</i>` : ''}
-      </div>`
-      )
-      .join('')}
-  </div>
+    <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
+      ✅ Поручения и Задачи (Action Items)
+    </h2>
+    <div style="font-family: Arial, Helvetica, sans-serif;">
+      ${record.analysis.actionItems
+        .map(
+          (a) => `
+        <div class="task-item" style="font-family: Arial, Helvetica, sans-serif; margin-bottom: 6px; padding: 6px 10px; background: #f9fafb; border-radius: 4px; border: 1px solid #e5e7eb;">
+          <b>[${a.priority === 'high' ? 'ВЫСОКИЙ' : 'ОБЫЧНЫЙ'}]</b> ${a.task}
+          ${a.assignee ? `<i>(Ответственный: ${a.assignee})</i>` : ''}
+        </div>`
+        )
+        .join('')}
+    </div>
 
-  <h2>🕒 Главы и таймкоды</h2>
-  <ul>
-    ${record.analysis.chapters
-      .map(
-        (c) => `
-      <li>
-        <span class="chapter-time">[${c.timestamp}]</span> <b>${c.title}</b> — ${c.summary}
-      </li>`
-      )
-      .join('')}
-  </ul>
+    <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
+      🕒 Главы и таймкоды
+    </h2>
+    <ul style="font-family: Arial, Helvetica, sans-serif; padding-left: 20px; line-height: 1.6;">
+      ${record.analysis.chapters
+        .map(
+          (c) => `
+        <li style="font-family: Arial, Helvetica, sans-serif; margin-bottom: 6px;">
+          <span style="font-family: Arial, Helvetica, sans-serif; color: #2563eb; font-weight: bold;">[${c.timestamp}]</span> <b>${c.title}</b> — ${c.summary}
+        </li>`
+        )
+        .join('')}
+    </ul>
 
-  <h2>💬 Стенограмма диалога</h2>
-  <div>
-    ${
-      record.segments && record.segments.length > 0
-        ? record.segments
-            .map(
-              (s) => `
-          <p style="margin-bottom: 8px;">
-            <span class="segment-time">[${s.startTime}]</span> <span class="speaker-name">${s.speaker}:</span> ${s.text}
-          </p>`
-            )
-            .join('')
-        : `<pre style="white-space: pre-wrap; font-family: sans-serif;">${record.verbatimTranscript}</pre>`
-    }
+    <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
+      💬 Стенограмма диалога
+    </h2>
+    <div style="font-family: Arial, Helvetica, sans-serif;">
+      ${
+        record.segments && record.segments.length > 0
+          ? record.segments
+              .map(
+                (s) => `
+            <p style="font-family: Arial, Helvetica, sans-serif; margin-bottom: 8px; line-height: 1.6;">
+              <span style="font-family: Arial, Helvetica, sans-serif; color: #64748b; font-size: 10pt;">[${s.startTime}]</span> <span style="font-family: Arial, Helvetica, sans-serif; font-weight: bold; color: #1e40af;">${s.speaker}:</span> ${s.text}
+            </p>`
+              )
+              .join('')
+          : `<pre style="font-family: Arial, Helvetica, sans-serif; white-space: pre-wrap; line-height: 1.6;">${record.verbatimTranscript}</pre>`
+      }
+    </div>
   </div>
 </body>
 </html>
