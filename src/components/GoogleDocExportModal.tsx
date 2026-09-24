@@ -28,71 +28,138 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
 
   if (!isOpen || !record) return null;
 
-  const docTitle = record.title;
+  const docTitle = record.title.replace(/^YouTube\s*Видео:\s*/i, '').trim() || record.title;
+  const displayLanguage = (!record.language || record.language.includes('?')) ? 'Русский' : record.language;
 
+  // Build clean HTML report formatted strictly for Arial in Google Docs & Microsoft Word
   const buildHtmlReport = () => {
-    return `
-<!DOCTYPE html>
-<html>
+    return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
   <meta charset="utf-8">
   <title>${docTitle}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
   <style>
-    * {
-      font-family: Arial, Helvetica, sans-serif !important;
+    <!--
+    @page WordSection1 {
+      size: 595.3pt 841.9pt; /* A4 */
+      margin: 56.7pt 56.7pt 56.7pt 56.7pt;
+      mso-header-margin: 35.4pt;
+      mso-footer-margin: 35.4pt;
+      mso-paper-source: 0;
     }
-    body, div, p, h1, h2, h3, span, li, ul, ol, b, strong, i, em, a {
-      font-family: Arial, Helvetica, sans-serif !important;
+    div.WordSection1 {
+      page: WordSection1;
+    }
+    @font-face {
+      font-family: "Arial";
+      panose-1: 2 11 6 4 2 2 2 2 2 4;
+      mso-font-charset: 204;
+      mso-generic-font-family: swiss;
+      mso-font-pitch: variable;
+      mso-font-signature: -536859905 -1073711037 9 0 511 0;
+    }
+    * {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+      mso-ascii-font-family: Arial !important;
+      mso-fareast-font-family: Arial !important;
+      mso-hansi-font-family: Arial !important;
+      mso-bidi-font-family: Arial !important;
+    }
+    body, p, li, div, span, td, th {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+      mso-ascii-font-family: Arial !important;
+      mso-fareast-font-family: Arial !important;
+      mso-hansi-font-family: Arial !important;
+      mso-bidi-font-family: Arial !important;
+    }
+    p.MsoNormal, li.MsoNormal, div.MsoNormal {
+      mso-style-unhide: no;
+      mso-style-qformat: yes;
+      mso-style-parent: "";
+      margin: 0cm;
+      margin-bottom: 6.0pt;
+      mso-pagination: widow-orphan;
+      font-size: 11.0pt;
+      line-height: 1.5;
+      font-family: Arial, sans-serif;
+      mso-ascii-font-family: Arial;
+      mso-fareast-font-family: Arial;
+      mso-hansi-font-family: Arial;
+      mso-bidi-font-family: Arial;
+      color: #1a1a1a;
     }
     body {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
+      font-size: 11pt;
       line-height: 1.6;
       color: #1a1a1a;
       max-width: 800px;
       margin: 20px auto;
       padding: 0 15px;
-      font-size: 11pt;
     }
     h1 {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
+      mso-ascii-font-family: Arial !important;
+      mso-hansi-font-family: Arial !important;
+      mso-bidi-font-family: Arial !important;
       color: #1e3a8a;
       border-bottom: 2px solid #3b82f6;
       padding-bottom: 8px;
       font-size: 18pt;
-      margin-top: 10px;
+      margin-top: 14pt;
+      margin-bottom: 12pt;
+      font-weight: bold;
     }
     h2 {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
+      mso-ascii-font-family: Arial !important;
+      mso-hansi-font-family: Arial !important;
+      mso-bidi-font-family: Arial !important;
       color: #1d4ed8;
-      margin-top: 24px;
+      margin-top: 20pt;
+      margin-bottom: 8pt;
       border-bottom: 1px solid #e5e7eb;
       padding-bottom: 4px;
       font-size: 13pt;
+      font-weight: bold;
     }
     p, li {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
+      mso-ascii-font-family: Arial !important;
+      mso-hansi-font-family: Arial !important;
       font-size: 11pt;
       line-height: 1.6;
     }
     .meta {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
       background-color: #f8fafc;
       padding: 12px 16px;
       border-radius: 8px;
       margin-bottom: 20px;
       font-size: 10pt;
       border: 1px solid #e2e8f0;
+      color: #334155;
     }
     .summary-box {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
       background-color: #eff6ff;
       border-left: 4px solid #3b82f6;
       padding: 14px;
       border-radius: 4px;
       margin: 16px 0;
     }
+    }
     .task-item {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
       margin-bottom: 6px;
       padding: 6px 10px;
       background: #f9fafb;
@@ -101,49 +168,49 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
       font-size: 10.5pt;
     }
     .chapter-time {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
       color: #2563eb;
       font-weight: bold;
     }
     .segment-time {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
       color: #64748b;
       font-size: 10pt;
     }
     .speaker-name {
-      font-family: Arial, Helvetica, sans-serif !important;
+      font-family: Arial, sans-serif !important;
       font-weight: bold;
       color: #1e40af;
     }
   </style>
 </head>
 <body style="font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.6; color: #1a1a1a;">
-  <div style="font-family: Arial, Helvetica, sans-serif;">
+  <div class="WordSection1" style="font-family: Arial, Helvetica, sans-serif;">
     <h1 style="font-family: Arial, Helvetica, sans-serif; color: #1e3a8a; border-bottom: 2px solid #3b82f6; padding-bottom: 8px; font-size: 18pt;">
-      📄 ${docTitle}
+      ${docTitle}
     </h1>
     
     <div class="meta" style="font-family: Arial, Helvetica, sans-serif; background-color: #f8fafc; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 10pt; border: 1px solid #e2e8f0;">
       <p style="font-family: Arial, Helvetica, sans-serif; margin: 0 0 6px 0;"><strong>Источник:</strong> <a href="${record.sourceUrl}">${record.sourceUrl}</a> (${record.platform.toUpperCase()})</p>
-      <p style="font-family: Arial, Helvetica, sans-serif; margin: 0;"><strong>Дата создания:</strong> ${new Date(record.createdAt).toLocaleDateString('ru-RU')} | <strong>Длительность:</strong> ~${Math.round(record.durationSeconds / 60)} мин | <strong>Язык:</strong> ${record.language}</p>
+      <p style="font-family: Arial, Helvetica, sans-serif; margin: 0;"><strong>Дата создания:</strong> ${new Date(record.createdAt).toLocaleDateString('ru-RU')} | <strong>Длительность:</strong> ~${Math.round(record.durationSeconds / 60)} мин | <strong>Язык:</strong> ${displayLanguage}</p>
     </div>
 
     <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
-      📌 Краткое содержание (Саммари)
+      Краткое содержание (Саммари)
     </h2>
     <div class="summary-box" style="font-family: Arial, Helvetica, sans-serif; background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 14px; border-radius: 4px; margin: 16px 0;">
       <p style="font-family: Arial, Helvetica, sans-serif; margin: 0; line-height: 1.6;">${record.analysis.summary.replace(/\n/g, '<br>')}</p>
     </div>
 
     <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
-      💡 Главные выводы
+      Главные выводы
     </h2>
     <ul style="font-family: Arial, Helvetica, sans-serif; padding-left: 20px; line-height: 1.6;">
       ${record.analysis.mainTakeaways.map((t) => `<li style="font-family: Arial, Helvetica, sans-serif; margin-bottom: 4px;">${t}</li>`).join('')}
     </ul>
 
     <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
-      ✅ Поручения и Задачи (Action Items)
+      Поручения и задачи (Action Items)
     </h2>
     <div style="font-family: Arial, Helvetica, sans-serif;">
       ${record.analysis.actionItems
@@ -158,7 +225,7 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
     </div>
 
     <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
-      🕒 Главы и таймкоды
+      Главы и таймкоды
     </h2>
     <ul style="font-family: Arial, Helvetica, sans-serif; padding-left: 20px; line-height: 1.6;">
       ${record.analysis.chapters
@@ -172,7 +239,7 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
     </ul>
 
     <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
-      💬 Стенограмма диалога
+      Стенограмма диалога
     </h2>
     <div style="font-family: Arial, Helvetica, sans-serif;">
       ${
@@ -190,41 +257,40 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
     </div>
   </div>
 </body>
-</html>
-    `;
+</html>`;
   };
 
   const formattedDocMarkdown = `
-# 📄 ${record.title}
-**Источник:** ${record.sourceUrl} (${record.platform.toUpperCase()})  
-**Дата:** ${new Date(record.createdAt).toLocaleDateString('ru-RU')} | **Длительность:** ~${Math.round(record.durationSeconds / 60)} мин
+# ${docTitle}
+Источник: ${record.sourceUrl} (${record.platform.toUpperCase()})
+Дата: ${new Date(record.createdAt).toLocaleDateString('ru-RU')} | Длительность: ~${Math.round(record.durationSeconds / 60)} мин | Язык: ${displayLanguage}
 
 ---
 
-## 📌 Краткое содержание (Саммари)
+## Краткое содержание (Саммари)
 ${record.analysis.summary}
 
 ---
 
-## 💡 Главные выводы
+## Главные выводы
 ${record.analysis.mainTakeaways.map((t) => '* ' + t).join('\n')}
 
 ---
 
-## ✅ Поручения и Задачи (Action Items)
-${record.analysis.actionItems.map((a) => `* **[${a.priority === 'high' ? 'ВЫСОКИЙ' : 'ОБЫЧНЫЙ'}]** ${a.task} ${a.assignee ? `*(Ответственный: ${a.assignee})*` : ''}`).join('\n')}
+## Поручения и Задачи (Action Items)
+${record.analysis.actionItems.map((a) => `* [${a.priority === 'high' ? 'ВЫСОКИЙ' : 'ОБЫЧНЫЙ'}] ${a.task} ${a.assignee ? `(Ответственный: ${a.assignee})` : ''}`).join('\n')}
 
 ---
 
-## 🕒 Главы и таймкоды
-${record.analysis.chapters.map((c) => `* **[${c.timestamp}] ${c.title}:** ${c.summary}`).join('\n')}
+## Главы и таймкоды
+${record.analysis.chapters.map((c) => `* [${c.timestamp}] ${c.title}: ${c.summary}`).join('\n')}
 
 ---
 
-## 💬 Стенограмма диалога
+## Стенограмма диалога
 ${
   record.segments && record.segments.length > 0
-    ? record.segments.map((s) => `[${s.startTime}] **${s.speaker}:** ${s.text}`).join('\n\n')
+    ? record.segments.map((s) => `[${s.startTime}] ${s.speaker}: ${s.text}`).join('\n\n')
     : record.verbatimTranscript
 }
   `.trim();
@@ -244,7 +310,6 @@ ${
         }),
       ]);
     } catch (e) {
-      // Fallback to plain text
       await navigator.clipboard.writeText(formattedDocMarkdown);
     }
 
@@ -277,7 +342,7 @@ ${
   };
 
   const handleDownloadDoc = () => {
-    const htmlBlob = new Blob([buildHtmlReport()], { type: 'text/html;charset=utf-8' });
+    const htmlBlob = new Blob([buildHtmlReport()], { type: 'application/msword;charset=utf-8' });
     const url = URL.createObjectURL(htmlBlob);
     const a = document.createElement('a');
     a.href = url;
@@ -302,8 +367,8 @@ ${
             <FileSpreadsheet className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Экспорт в Google Документы</h2>
-            <p className="text-xs text-slate-400">Саммари, выводы, задачи и полная стенограмма</p>
+            <h2 className="text-xl font-bold text-white">Экспорт в Google Документы &amp; Word</h2>
+            <p className="text-xs text-slate-400">Саммари, выводы, задачи и полная стенограмма в шрифте Arial</p>
           </div>
         </div>
 
@@ -320,7 +385,7 @@ ${
                 Скопировать отчет и открыть Google Docs
               </h3>
               <p className="text-xs text-slate-300 mt-1 max-w-md leading-relaxed">
-                Нажмите кнопку ниже: мы <strong>скопируем готовый отчет со стилями и форматированием в буфер обмена</strong> и сразу откроем новый Google Документ. Вам останется только нажать <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 text-white font-mono text-[11px]">Ctrl+V</kbd>.
+                Нажмите кнопку: мы <strong>скопируем готовый отчет со шрифтом Arial в буфер обмена</strong> и откроем новый Google Документ. Вам останется нажать <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 text-white font-mono text-[11px]">Ctrl+V</kbd>.
               </p>
             </div>
 
@@ -373,15 +438,15 @@ ${
           >
             <div>
               <p className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                <Download className="w-3.5 h-3.5 text-purple-400" /> Скачать файл документа (.doc)
+                <Download className="w-3.5 h-3.5 text-purple-400" /> Скачать файл Word (.doc)
               </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Для Word или загрузки на Google Диск</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">В чистом шрифте Arial для Word или Google Диска</p>
             </div>
             <Download className="w-4 h-4 text-slate-400" />
           </button>
         </div>
 
-        {/* Text Preview Box (User requested to see the text) */}
+        {/* Text Preview Box */}
         <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
           <div className="p-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
@@ -406,7 +471,7 @@ ${
         <div className="mt-4 flex items-start gap-2 text-[11px] text-slate-500">
           <HelpCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-400" />
           <p>
-            Google Docs по соображениям безопасности не позволяет сторонним сайтам передавать текст документа через ссылку (поддерживается только название). Поэтому связка <strong>«Клик ➔ Скопировано ➔ Ctrl+V»</strong> является самым быстрым и безопасным способом перенести готовый отчет.
+            Файл оптимизирован для Microsoft Word и Google Docs: шрифт <strong>Arial</strong> зафиксирован на всех уровнях заголовков и текста, а кодировка настроена на корректное отображение кириллицы.
           </p>
         </div>
 

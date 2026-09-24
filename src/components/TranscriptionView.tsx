@@ -56,39 +56,57 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
     }
   };
 
-  const handleCopyAll = () => {
-    const textToCopy = `
+  const generateFullTextReport = () => {
+    const displayLanguage = (!record.language || record.language.includes('?')) ? 'Русский' : record.language;
+    return `================================================================================
 НАЗВАНИЕ: ${record.title}
-ИСТОЧНИК: ${record.sourceUrl}
-ДЛИТЕЛЬНОСТЬ: ~${Math.round(record.durationSeconds / 60)} мин
+ИСТОЧНИК: ${record.sourceUrl} (${record.platform.toUpperCase()})
+ДАТА: ${new Date(record.createdAt).toLocaleDateString('ru-RU')}
+ДЛИТЕЛЬНОСТЬ: ~${Math.round(record.durationSeconds / 60)} мин (${record.durationSeconds} сек)
+ЯЗЫК: ${displayLanguage}
+================================================================================
 
---- САММАРИ ---
+1. КРАТКОЕ СОДЕРЖАНИЕ (САММАРИ)
+--------------------------------------------------------------------------------
 ${record.analysis.summary}
 
---- КЛЮЧЕВЫЕ ВЫВОДЫ ---
-${record.analysis.mainTakeaways.map((t) => '• ' + t).join('\n')}
+2. ГЛАВНЫЕ ВЫВОДЫ
+--------------------------------------------------------------------------------
+${record.analysis.mainTakeaways.map((t, idx) => `${idx + 1}. ${t}`).join('\n')}
 
---- ЗАДАЧИ И ПОРУЧЕНИЯ ---
-${record.analysis.actionItems.map((a) => `[${a.priority.toUpperCase()}] ${a.task} (${a.assignee || 'без ответственного'})`).join('\n')}
+3. ПОРУЧЕНИЯ И ЗАДАЧИ (ACTION ITEMS)
+--------------------------------------------------------------------------------
+${record.analysis.actionItems.map((a, idx) => `${idx + 1}. [${a.priority === 'high' ? 'ВЫСОКИЙ' : 'ОБЫЧНЫЙ'}] ${a.task}${a.assignee ? ` (Ответственный: ${a.assignee})` : ''}`).join('\n')}
 
---- ТАЙМКОДЫ ---
-${record.analysis.chapters.map((c) => `[${c.timestamp}] ${c.title}: ${c.summary}`).join('\n')}
+4. ГЛАВЫ И ТАЙМКОДЫ
+--------------------------------------------------------------------------------
+${record.analysis.chapters.map((c) => `[${c.timestamp}] ${c.title} — ${c.summary}`).join('\n')}
 
---- ТЕКСТ РАСШИФРОВКИ ---
-${record.verbatimTranscript}
+5. ПОЛНАЯ СТЕНОГРАММА ДИАЛОГА
+--------------------------------------------------------------------------------
+${
+  record.segments && record.segments.length > 0
+    ? record.segments.map((s) => `[${s.startTime}] ${s.speaker}: ${s.text}`).join('\n\n')
+    : record.verbatimTranscript
+}
+================================================================================
 `;
+  };
 
+  const handleCopyAll = () => {
+    const textToCopy = generateFullTextReport();
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownloadTxt = () => {
-    const blob = new Blob([record.verbatimTranscript], { type: 'text/plain;charset=utf-8' });
+    const fullText = generateFullTextReport();
+    const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${record.title.replace(/[^a-zA-Z0-9а-яА-Я_-]/gi, '_')}_расшифровка.txt`;
+    link.download = `${record.title.replace(/[^a-zA-Z0-9а-яА-Я_-]/gi, '_')}_отчет.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };
