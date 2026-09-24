@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
 import { YoutubeTranscript } from 'youtube-transcript';
@@ -113,7 +114,10 @@ const users: Record<string, UserProfile> = {
 
 const guestSessions: Record<string, { usedMinutesToday: number; dailyCount: number; lastReset: string }> = {};
 
-let transcriptionsHistory: TranscriptionRecord[] = [
+const DATA_DIR = path.join(process.cwd(), 'data');
+const HISTORY_FILE = path.join(DATA_DIR, 'transcriptions.json');
+
+const defaultDemoRecords: TranscriptionRecord[] = [
   {
     id: 'demo-tx-1',
     userId: 'admin-1',
@@ -168,6 +172,37 @@ let transcriptionsHistory: TranscriptionRecord[] = [
     googleDocUrl: 'https://docs.google.com/document/d/demo_export_doc_id/edit',
   },
 ];
+
+function loadPersistedHistory(): TranscriptionRecord[] {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (fs.existsSync(HISTORY_FILE)) {
+      const raw = fs.readFileSync(HISTORY_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (Array.isArray(data) && data.length > 0) {
+        return data;
+      }
+    }
+  } catch (e) {
+    console.error('[Storage] Error loading history:', e);
+  }
+  return defaultDemoRecords;
+}
+
+function persistHistory(records: TranscriptionRecord[]) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(records, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[Storage] Error saving history:', e);
+  }
+}
+
+let transcriptionsHistory: TranscriptionRecord[] = loadPersistedHistory();
 
 let systemStats: SystemStats = {
   totalTranscriptions: 48,
@@ -360,6 +395,7 @@ app.get('/api/transcriptions/:id', (req, res) => {
 // Delete Transcription
 app.delete('/api/transcriptions/:id', (req, res) => {
   transcriptionsHistory = transcriptionsHistory.filter((t) => t.id !== req.params.id);
+  persistHistory(transcriptionsHistory);
   res.json({ success: true });
 });
 
@@ -689,6 +725,7 @@ ${realTranscriptText.slice(0, 45000)}
 
     // Save record & update stats
     transcriptionsHistory.unshift(newRecord);
+    persistHistory(transcriptionsHistory);
 
     systemStats.totalTranscriptions += 1;
     systemStats.totalDurationHours = Math.round((systemStats.totalDurationHours + durationMinutes / 60) * 10) / 10;
