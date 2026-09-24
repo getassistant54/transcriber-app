@@ -222,6 +222,44 @@ function formatTimestamp(seconds: number): string {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
+function parseVerbatimToSegments(verbatim: string): SpeakerSegment[] {
+  const lines = verbatim.split('\n').map((l) => l.trim()).filter(Boolean);
+  const segments: SpeakerSegment[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/^\[(\d{1,2}:\d{2})\]\s*(?:([^:]+):\s*)?(.*)$/);
+    if (match) {
+      const timeStr = match[1];
+      const [m, s] = timeStr.split(':').map(Number);
+      const speaker = match[2] ? match[2].trim() : 'Спикер';
+      const text = match[3] ? match[3].trim() : '';
+      if (text) {
+        segments.push({
+          speaker,
+          startTime: timeStr,
+          startSeconds: m * 60 + s,
+          text,
+        });
+      }
+    }
+  }
+
+  return segments;
+}
+
+function ensureCompleteSegments(record: TranscriptionRecord): TranscriptionRecord {
+  const hasEllipses = record.segments?.some((s) => s.text?.endsWith('...'));
+  if (!record.segments || record.segments.length <= 5 || hasEllipses) {
+    if (record.verbatimTranscript) {
+      const parsed = parseVerbatimToSegments(record.verbatimTranscript);
+      if (parsed.length > 0) {
+        return { ...record, segments: parsed };
+      }
+    }
+  }
+  return record;
+}
+
 // API Routes
 
 app.get('/api/health', (req, res) => {
@@ -307,7 +345,7 @@ app.get('/api/transcriptions', (req, res) => {
     records = transcriptionsHistory.filter((t) => t.userId === userId || t.userId === 'admin-1');
   }
 
-  res.json({ transcriptions: records });
+  res.json({ transcriptions: records.map(ensureCompleteSegments) });
 });
 
 // Get Single Transcription Record
@@ -316,7 +354,7 @@ app.get('/api/transcriptions/:id', (req, res) => {
   if (!record) {
     return res.status(404).json({ error: 'Транскрипция не найдена' });
   }
-  res.json({ record });
+  res.json({ record: ensureCompleteSegments(record) });
 });
 
 // Delete Transcription
@@ -622,6 +660,15 @@ ${realTranscriptText.slice(0, 45000)}
       sentimentAndTone: parsedResponse.sentimentAndTone || 'Нейтральный',
     };
 
+    const fullVerbatim = parsedResponse.verbatimTranscript || realTranscriptText || '';
+    const parsedSegments = parseVerbatimToSegments(fullVerbatim);
+    const hasEllipses = parsedResponse.segments?.some((s: any) => s.text?.endsWith('...'));
+    const finalSegments = (hasEllipses || parsedSegments.length >= (parsedResponse.segments?.length || 0))
+      ? (parsedSegments.length > 0 ? parsedSegments : (parsedResponse.segments || []))
+      : (parsedResponse.segments && parsedResponse.segments.length > 0)
+        ? parsedResponse.segments
+        : parsedSegments;
+
     const newRecord: TranscriptionRecord = {
       id: 'tx-' + Date.now(),
       userId: userId === 'guest' ? 'guest' : userId,
@@ -633,8 +680,8 @@ ${realTranscriptText.slice(0, 45000)}
       preset: preset as AnalysisPreset,
       language,
       createdAt: new Date().toISOString(),
-      verbatimTranscript: parsedResponse.verbatimTranscript || realTranscriptText || '',
-      segments: parsedResponse.segments || [],
+      verbatimTranscript: fullVerbatim,
+      segments: finalSegments,
       analysis,
       tokenCost,
       googleDocUrl: `https://docs.google.com/document/create?title=${encodeURIComponent(linkInfo.title)}`,

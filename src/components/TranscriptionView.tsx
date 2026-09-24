@@ -39,6 +39,7 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(0);
+  const [transcriptViewMode, setTranscriptViewMode] = useState<'segments' | 'verbatim'>('segments');
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
@@ -380,36 +381,67 @@ ${record.verbatimTranscript}
               />
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span>Найдено совпадений: {filteredTranscriptSegments.length}</span>
+            <div className="flex items-center gap-3">
+              <div className="inline-flex rounded-xl bg-slate-950 p-1 border border-slate-800 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setTranscriptViewMode('segments')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition ${
+                    transcriptViewMode === 'segments'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  По репликам ({filteredTranscriptSegments.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTranscriptViewMode('verbatim')}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition ${
+                    transcriptViewMode === 'verbatim'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Сплошная стенограмма
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
-            {filteredTranscriptSegments.length > 0 ? (
-              filteredTranscriptSegments.map((seg, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setCurrentTimeSeconds(seg.startSeconds || 0)}
-                  className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5" /> {seg.speaker}
-                    </span>
-                    <span className="font-mono text-[11px] text-slate-500 hover:text-blue-400 transition">
-                      [{seg.startTime}]
-                    </span>
-                  </div>
-                  <p className="text-slate-300 text-sm leading-relaxed">{seg.text}</p>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-slate-500 text-sm">
-                Ничего не найдено по запросу "{searchTerm}"
+          {transcriptViewMode === 'verbatim' ? (
+            <div className="p-5 rounded-xl bg-slate-950/70 border border-slate-800/80 max-h-[600px] overflow-y-auto">
+              <div className="whitespace-pre-wrap font-sans text-sm text-slate-300 leading-relaxed select-text space-y-2">
+                {record.verbatimTranscript}
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+              {filteredTranscriptSegments.length > 0 ? (
+                filteredTranscriptSegments.map((seg, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setCurrentTimeSeconds(seg.startSeconds || 0)}
+                    className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 cursor-pointer transition"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5" /> {seg.speaker}
+                      </span>
+                      <span className="font-mono text-[11px] text-slate-500 hover:text-blue-400 transition">
+                        [{seg.startTime}]
+                      </span>
+                    </div>
+                    <p className="text-slate-300 text-sm leading-relaxed">{seg.text}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-slate-500 text-sm">
+                  Ничего не найдено по запросу "{searchTerm}"
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
