@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TranscriptionRecord } from '../types';
+import { TranscriptionRecord, UserProfile } from '../types';
 import {
   FileSpreadsheet,
   FileText,
@@ -29,11 +29,13 @@ interface TranscriptionViewProps {
   record: TranscriptionRecord;
   onOpenGoogleDocsModal: (record: TranscriptionRecord) => void;
   onDeleteRecord?: (id: string) => void;
+  currentUser?: UserProfile;
 }
 
 export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
   record,
   onOpenGoogleDocsModal,
+  currentUser,
 }) => {
   const [activeTab, setActiveTab] = useState<'analytics' | 'transcript' | 'tokens'>('analytics');
   const [searchTerm, setSearchTerm] = useState('');
@@ -241,17 +243,19 @@ ${
           <span>Чистая Стенограмма ({record.segments.length || 1} фразы)</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('tokens')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all ${
-            activeTab === 'tokens'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
-              : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800'
-          }`}
-        >
-          <Coins className="w-4 h-4 text-purple-300" />
-          <span>Токены &amp; Стоимость ({record.tokenCost.estimatedCostRub} ₽)</span>
-        </button>
+        {currentUser?.role === 'admin' && (
+          <button
+            onClick={() => setActiveTab('tokens')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all ${
+              activeTab === 'tokens'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
+                : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800'
+            }`}
+          >
+            <Coins className="w-4 h-4 text-purple-300" />
+            <span>Токены &amp; Стоимость ({record.tokenCost.estimatedCostRub} ₽)</span>
+          </button>
+        )}
       </div>
 
       {/* TAB 1: AI ANALYTICS & ACTION ITEMS */}

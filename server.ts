@@ -49,7 +49,7 @@ let adminSettings: AdminSettings = {
   tokenMarkupPercent: 40, // 40% margin for owner
   usdToRubRate: 92.5,
   aiProvider: (process.env.AI_PROVIDER as 'gemini' | 'hydra') || 'gemini',
-  activeModel: process.env.AI_MODEL || 'gemini-2.5-flash',
+  activeModel: process.env.AI_MODEL || 'gemini-3.6-flash',
   hydraBaseUrl: process.env.HYDRA_BASE_URL || 'https://api.hydraai.ru/v1',
   hydraModel: process.env.HYDRA_DEFAULT_MODEL || 'gemini-2.5-flash',
   customSystemPrompt: `Ты — экспертный ИИ-транскрибатор и бизнес-аналитик высшего класса. Твоя задача — создать безупречную транскрипцию видео/аудио и глубокий, структурированный бизнес-анализ.`,
@@ -498,7 +498,7 @@ app.delete('/api/transcriptions/:id', (req, res) => {
 // MAIN API: Perform Video Transcription & Gemini AI Analysis
 app.post('/api/transcribe', async (req, res) => {
   try {
-    const { url, rawText, preset = 'meeting', language = 'Русский', customTitle, fileName } = req.body;
+    const { url, rawText, preset = 'meeting', language = 'Русский', customTitle, fileName, fileBase64, fileMimeType } = req.body;
     const userId = (req.headers['x-user-id'] as string) || 'guest';
     const userRole = (req.headers['x-user-role'] as string) || 'guest';
 
@@ -515,7 +515,13 @@ app.post('/api/transcribe', async (req, res) => {
     }
 
     // Determine platform and meta
-    let linkInfo = url ? await parseVideoLinkInfo(url) : { platform: 'file_upload' as VideoPlatform, title: fileName || 'Загруженный аудио/видео файл', simulatedDuration: 1500 };
+    let linkInfo = url
+      ? await parseVideoLinkInfo(url)
+      : {
+          platform: 'file_upload' as VideoPlatform,
+          title: fileName ? fileName.replace(/\.[^/.]+$/, '') : 'Загруженная аудиозапись',
+          simulatedDuration: fileBase64 ? Math.max(60, Math.round(fileBase64.length / 32000)) : 1500,
+        };
     if (customTitle) {
       linkInfo.title = customTitle;
     }
@@ -582,6 +588,17 @@ app.post('/api/transcribe', async (req, res) => {
       custom: adminSettings.customSystemPrompt,
     };
 
+    const hasAudio = !!fileBase64;
+    const inputContextDescription = hasAudio
+      ? `РЕАЛЬНЫЙ АУДИОФАЙЛ ПРИКРЕПЛЕН К ЭТОМУ ЗАПРОСУ (${fileName || 'audio'}). ВНИМАНИЕ: Прослушай аудиофайл полностью, расшифруй всю речь без купюр и сокращений на языке (${language}), раздели на спикеров и таймкоды [MM:SS]. Не выдумывай факты!`
+      : (realTranscriptText
+        ? `РЕАЛЬНЫЙ ТЕКСТ СТЕНОГРАММЫ С ТАЙМКОДАМИ ИЗ ВИДЕО:
+"""
+${realTranscriptText.slice(0, 45000)}
+"""
+ВНИМАНИЕ: Опирайся СТРОГО на предоставленный реальный текст выше! Сохраняй реальные таймкоды, извлекай реальные задачи и цитаты спикеров. Не выдумывай факты!`
+        : `Видеозапись длительностью около ${durationMinutes} минут с подробным обсуждением рабочих задач, планов, докладов и ответов на вопросы.`);
+
     const aiPrompt = `
 Выполни полный профессиональный анализ и транскрибацию следующего видео/аудио материала на языке: ${language}.
 Название видео/встречи: "${linkInfo.title}".
@@ -589,11 +606,7 @@ app.post('/api/transcribe', async (req, res) => {
 Стиль анализа: ${presetInstructions[preset as AnalysisPreset] || presetInstructions.meeting}.
 
 Формат входных данных или контекста:
-${realTranscriptText ? `РЕАЛЬНЫЙ ТЕКСТ СТЕНОГРАММЫ С ТАЙМКОДАМИ ИЗ ВИДЕО:
-"""
-${realTranscriptText.slice(0, 45000)}
-"""
-ВНИМАНИЕ: Опирайся СТРОГО на предоставленный реальный текст выше! Сохраняй реальные таймкоды, извлекай реальные задачи и цитаты спикеров. Не выдумывай факты!` : `Видеозапись длительностью около ${durationMinutes} минут с подробным обсуждением рабочих задач, планов, докладов и ответов на вопросы.`}
+${inputContextDescription}
 
 ВАЖНО: Все поля ответа (включая "verbatimTranscript", "segments", "summary", "chapters", "actionItems") ОБЯЗАТЕЛЬНО должны быть на языке: ${language}! Если исходная стенограмма на другом языке — переведи её на ${language}.
 
@@ -682,18 +695,32 @@ ${realTranscriptText.slice(0, 45000)}
     } else {
       // Google GenAI Direct SDK call
       const ai = getGeminiClient();
-      const preferredModel = adminSettings.activeModel || 'gemini-2.5-flash';
+      const preferredModel = adminSettings.activeModel || 'gemini-3.6-flash';
 
       console.log(`[Transcribe] Initiating Gemini call with primary model ${preferredModel} for ${linkInfo.title}...`);
 
-      // Retry and Fallback models list to handle 503 high demand or temporary model unavailability
+      // Models priority list
       const candidateModels = [
         preferredModel,
-        'gemini-2.5-flash',
-        'gemini-2.5-pro',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-flash-latest',
+        'gemini-3.5-flash-lite',
+        'gemini-3.8-flash',
       ].filter((m, idx, self) => m && self.indexOf(m) === idx);
+
+      const contents: any[] = [];
+      if (fileBase64) {
+        const cleanBase64 = fileBase64.includes('base64,') ? fileBase64.split('base64,')[1] : fileBase64;
+        contents.push({
+          inlineData: {
+            mimeType: fileMimeType || 'audio/mp3',
+            data: cleanBase64,
+          },
+        });
+        console.log(`[Gemini API] Attached inline audio (${fileMimeType || 'audio/mp3'}), base64 length: ${cleanBase64.length}`);
+      }
+      contents.push(aiPrompt);
 
       for (const currentModel of candidateModels) {
         if (apiSuccess) break;
@@ -703,10 +730,10 @@ ${realTranscriptText.slice(0, 45000)}
             console.log(`[Gemini API] Trying model "${currentModel}" (Attempt ${attempt})...`);
             const response = await ai.models.generateContent({
               model: currentModel,
-              contents: aiPrompt,
+              contents: contents,
               config: {
                 systemInstruction: adminSettings.customSystemPrompt,
-                responseMimeType: 'application/json',
+                ...(fileBase64 ? {} : { responseMimeType: 'application/json' }),
                 temperature: 0.3,
               },
             });
@@ -730,7 +757,7 @@ ${realTranscriptText.slice(0, 45000)}
           } catch (aiErr: any) {
             console.warn(`[Gemini API] Model "${currentModel}" attempt ${attempt} failed: ${aiErr.message || aiErr}`);
             if (attempt < 2) {
-              await new Promise((res) => setTimeout(res, 1200)); // wait 1.2s before retry
+              await new Promise((res) => setTimeout(res, 2500)); // wait 2.5s before retry
             }
           }
         }
@@ -775,6 +802,14 @@ ${realTranscriptText.slice(0, 45000)}
       outputTokens = 1900;
     }
 
+    if (parsedResponse.segments && Array.isArray(parsedResponse.segments) && parsedResponse.segments.length > 0) {
+      const lastSeg = parsedResponse.segments[parsedResponse.segments.length - 1];
+      if (typeof lastSeg.startSeconds === 'number' && lastSeg.startSeconds > 0) {
+        durationSeconds = Math.max(durationSeconds, lastSeg.startSeconds + 5);
+      }
+    }
+    const finalDurationMinutes = Math.round((durationSeconds / 60) * 10) / 10;
+
     // Token Cost Calculation
     // Gemini Flash pricing approximation: $0.075 / 1M prompt tokens, $0.30 / 1M output tokens
     const rawCostUsd = (inputTokens / 1_000_000) * 0.075 + (outputTokens / 1_000_000) * 0.30;
@@ -788,7 +823,7 @@ ${realTranscriptText.slice(0, 45000)}
       totalTokens: inputTokens + outputTokens,
       estimatedCostUsd: Math.round(finalCostUsd * 10000) / 10000,
       estimatedCostRub: finalCostRub,
-      durationMinutes,
+      durationMinutes: finalDurationMinutes,
     };
 
     const analysis: AnalysisResult = {

@@ -26,6 +26,8 @@ interface TranscribeFormProps {
     language: string;
     customTitle?: string;
     fileName?: string;
+    fileBase64?: string;
+    fileMimeType?: string;
   }) => void;
   isLoading: boolean;
   isGuest: boolean;
@@ -51,6 +53,10 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   const [language, setLanguage] = useState('Русский');
   const [inputMode, setInputMode] = useState<'url' | 'file' | 'text'>('url');
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [uploadedFileBase64, setUploadedFileBase64] = useState<string | null>(null);
+  const [uploadedFileMimeType, setUploadedFileMimeType] = useState<string | null>(null);
+  const [fileSizeMb, setFileSizeMb] = useState<number | null>(null);
+  const [fileReading, setFileReading] = useState<boolean>(false);
 
   const platformPresets: { id: VideoPlatform; name: string; icon: React.ReactNode; color: string; sampleUrl: string }[] = [
     {
@@ -61,11 +67,18 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       sampleUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     },
     {
+      id: 'kinescope',
+      name: 'Kinescope',
+      icon: <PlayCircle className="w-5 h-5" />,
+      color: 'hover:border-violet-500/50 hover:bg-violet-500/10 text-violet-400',
+      sampleUrl: 'https://kinescope.io/6GNRWVxQpKtCue68QTnY5F',
+    },
+    {
       id: 'rutube',
       name: 'Rutube',
       icon: <PlayCircle className="w-5 h-5" />,
       color: 'hover:border-blue-500/50 hover:bg-blue-500/10 text-blue-400',
-      sampleUrl: 'https://rutube.ru/video/1a2b3c4d5e6f7g8h/',
+      sampleUrl: 'https://rutube.ru/video/private/a501cccfcde5f5fb1c09f15fc77e9a5b/?p=utRZXj24lvzBjDFyoJ8xlg',
     },
     {
       id: 'yandex_disk',
@@ -81,14 +94,35 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       color: 'hover:border-emerald-500/50 hover:bg-emerald-500/10 text-emerald-400',
       sampleUrl: 'https://drive.google.com/file/d/1A2B3C_google_doc_media/view',
     },
+  ];
+
+  const demoExamples = [
     {
-      id: 'direct_url',
-      name: 'Прямой файл / Загрузка',
-      icon: <FileAudio className="w-5 h-5" />,
-      color: 'hover:border-purple-500/50 hover:bg-purple-500/10 text-purple-400',
-      sampleUrl: 'https://example.com/recorded_meeting.mp4',
+      title: '🎬 Пример: Совещание команды (YouTube)',
+      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      preset: 'meeting' as AnalysisPreset,
+      platform: 'youtube' as VideoPlatform,
+    },
+    {
+      title: '🎓 Пример: Лекция психолога (Kinescope с VTT)',
+      url: 'https://kinescope.io/6GNRWVxQpKtCue68QTnY5F',
+      preset: 'lecture' as AnalysisPreset,
+      platform: 'kinescope' as VideoPlatform,
+    },
+    {
+      title: '💼 Пример: Запись встречи (Rutube)',
+      url: 'https://rutube.ru/video/private/a501cccfcde5f5fb1c09f15fc77e9a5b/?p=utRZXj24lvzBjDFyoJ8xlg',
+      preset: 'quick_summary' as AnalysisPreset,
+      platform: 'rutube' as VideoPlatform,
     },
   ];
+
+  const applyDemo = (demo: typeof demoExamples[0]) => {
+    setInputMode('url');
+    setSelectedPlatform(demo.platform);
+    setInputUrl(demo.url);
+    setPreset(demo.preset);
+  };
 
   const analysisPresetsList = [
     {
@@ -121,6 +155,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     e.preventDefault();
     if (inputMode === 'url' && !inputUrl.trim()) return;
     if (inputMode === 'text' && !rawTextInput.trim()) return;
+    if (inputMode === 'file' && (!uploadedFileName || fileReading)) return;
 
     onTranscribe({
       url: inputMode === 'url' ? inputUrl.trim() : undefined,
@@ -129,6 +164,8 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       language,
       customTitle: customTitle.trim() || undefined,
       fileName: uploadedFileName || undefined,
+      fileBase64: inputMode === 'file' ? (uploadedFileBase64 || undefined) : undefined,
+      fileMimeType: inputMode === 'file' ? (uploadedFileMimeType || undefined) : undefined,
     });
   };
 
@@ -138,12 +175,26 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     setInputMode('url');
   };
 
-  const handleFileUploadMock = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFileName(file.name);
       setInputMode('file');
       if (!customTitle) setCustomTitle(file.name.replace(/\.[^/.]+$/, ''));
+      setFileSizeMb(Math.round((file.size / (1024 * 1024)) * 10) / 10);
+      setUploadedFileMimeType(file.type || 'audio/mp3');
+      setFileReading(true);
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        setUploadedFileBase64(result);
+        setFileReading(false);
+      };
+      reader.onerror = () => {
+        setFileReading(false);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -195,6 +246,21 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
             );
           })}
         </div>
+
+        {/* Demo Examples Quick Buttons */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-slate-400 font-medium">Быстрый пример:</span>
+          {demoExamples.map((demo, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => applyDemo(demo)}
+              className="text-xs px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1.5 shadow-sm"
+            >
+              <span>{demo.title}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -219,7 +285,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
                   inputMode === 'file' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
               >
-                📁 Загрузить файл (MP3/MP4)
+                📁 Загрузить файл (MP3/M4A/WAV)
               </button>
               <button
                 type="button"
@@ -253,13 +319,13 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
                 type="url"
                 value={inputUrl}
                 onChange={(e) => setInputUrl(e.target.value)}
-                placeholder="Вставьте ссылку на YouTube, Rutube, Яндекс Диск или Google Drive..."
+                placeholder="Вставьте ссылку на YouTube, Rutube, Kinescope, Яндекс Диск или Google Drive..."
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pr-28 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition shadow-inner"
                 required
               />
               <button
                 type="button"
-                onClick={() => setInputUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
+                onClick={() => setInputUrl('https://kinescope.io/6GNRWVxQpKtCue68QTnY5F')}
                 className="absolute right-2 top-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 rounded-lg border border-slate-700 transition"
               >
                 Демо-ссылка
@@ -271,21 +337,27 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
             <div className="border-2 border-dashed border-slate-700 hover:border-blue-500/50 bg-slate-950/60 rounded-xl p-6 text-center transition cursor-pointer relative">
               <input
                 type="file"
-                accept="audio/*,video/*"
-                onChange={handleFileUploadMock}
+                accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.aac,.ogg,.flac"
+                onChange={handleFileUpload}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               />
               <FileAudio className="w-10 h-10 mx-auto text-blue-400 mb-2" />
               <p className="text-sm font-medium text-slate-200">
-                {uploadedFileName ? (
+                {fileReading ? (
+                  <span className="text-amber-400 flex items-center justify-center gap-1.5 animate-pulse">
+                    <Clock className="w-4 h-4" /> Чтение и кодирование файла в память...
+                  </span>
+                ) : uploadedFileName ? (
                   <span className="text-emerald-400 flex items-center justify-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" /> Файл выбран: {uploadedFileName}
+                    <CheckCircle2 className="w-4 h-4" /> Файл готов: {uploadedFileName} {fileSizeMb ? `(${fileSizeMb} МБ)` : ''}
                   </span>
                 ) : (
-                  'Перетащите аудио/видео файл сюда или нажмите для выбора'
+                  'Перетащите аудио файл (MP3, M4A, WAV, MP4) сюда или нажмите для выбора'
                 )}
               </p>
-              <p className="text-xs text-slate-500 mt-1">Поддерживает MP3, MP4, WAV, M4A, MOV до 500 МБ</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Поддерживаются аудиоформаты M4A, MP3, WAV, MP4 (прямое распознавание через Gemini AI)
+              </p>
             </div>
           )}
 

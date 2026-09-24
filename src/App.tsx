@@ -152,6 +152,8 @@ export default function App() {
     language: string;
     customTitle?: string;
     fileName?: string;
+    fileBase64?: string;
+    fileMimeType?: string;
   }) => {
     setIsLoading(true);
     setErrorMsg(null);
@@ -312,6 +314,7 @@ export default function App() {
                     record={selectedRecord}
                     onOpenGoogleDocsModal={handleOpenGoogleDocsModal}
                     onDeleteRecord={handleDeleteRecord}
+                    currentUser={currentUser}
                   />
                 </div>
               )}
