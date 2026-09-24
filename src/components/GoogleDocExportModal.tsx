@@ -10,6 +10,7 @@ import {
   Sparkles,
   FileText,
   HelpCircle,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface GoogleDocExportModalProps {
@@ -23,7 +24,9 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [copied, setCopied] = useState(false);
+  const [copiedDocs, setCopiedDocs] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
+  const [downloadDocStatus, setDownloadDocStatus] = useState<'idle' | 'downloading' | 'downloaded'>('idle');
   const [showPreview, setShowPreview] = useState(true);
 
   if (!isOpen || !record) return null;
@@ -295,60 +298,115 @@ ${
 }
   `.trim();
 
-  // Primary Action: Copy Rich HTML to Clipboard & Open Google Docs in 1 click
-  const handleCopyAndOpenGoogleDocs = async () => {
-    try {
-      const htmlText = buildHtmlReport();
-      const blobHtml = new Blob([htmlText], { type: 'text/html' });
-      const blobText = new Blob([formattedDocMarkdown], { type: 'text/plain' });
+  // Bulletproof HTML + Text clipboard copy with fallback hierarchy
+  const copyHtmlAndTextToClipboard = async (html: string, text: string) => {
+    let success = false;
 
-      // ClipboardItem copies rich HTML so Google Docs pastes formatted headings, styles and colors
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': blobHtml,
-          'text/plain': blobText,
-        }),
-      ]);
-    } catch (e) {
-      await navigator.clipboard.writeText(formattedDocMarkdown);
+    // 1. Modern ClipboardItem with formatted HTML + plain text
+    if (navigator?.clipboard?.write && window.ClipboardItem) {
+      try {
+        const blobHtml = new Blob([html], { type: 'text/html' });
+        const blobText = new Blob([text], { type: 'text/plain' });
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': blobHtml,
+            'text/plain': blobText,
+          }),
+        ]);
+        success = true;
+      } catch (err) {
+        console.warn('HTML ClipboardItem copy failed, falling back:', err);
+      }
     }
 
-    setCopied(true);
-    setTimeout(() => setCopied(false), 4000);
+    // 2. navigator.clipboard.writeText
+    if (!success && navigator?.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        success = true;
+      } catch (err) {
+        console.warn('writeText copy failed, falling back:', err);
+      }
+    }
 
-    // Open Google Docs
-    window.open(
-      `https://docs.google.com/document/create?title=${encodeURIComponent(docTitle)}`,
-      '_blank'
-    );
+    // 3. document.execCommand('copy') fallback
+    if (!success) {
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        textarea.style.top = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      } catch (err) {
+        console.error('execCommand fallback failed:', err);
+      }
+    }
+  };
+
+  // Primary Action: Copy Rich HTML to Clipboard & Open Google Docs in 1 click
+  const handleCopyAndOpenGoogleDocs = async () => {
+    // 1. Immediately show beautiful green confirmation
+    setCopiedDocs(true);
+    setTimeout(() => setCopiedDocs(false), 9000);
+
+    // 2. Open Google Docs synchronously on click
+    try {
+      window.open(
+        `https://docs.google.com/document/create?title=${encodeURIComponent(docTitle)}`,
+        '_blank'
+      );
+    } catch (e) {
+      console.warn('Popup opened with fallback:', e);
+    }
+
+    // 3. Copy rich HTML report to clipboard
+    try {
+      const htmlText = buildHtmlReport();
+      await copyHtmlAndTextToClipboard(htmlText, formattedDocMarkdown);
+    } catch (e) {
+      console.warn('Copy report warning:', e);
+    }
   };
 
   const handleCopyOnly = async () => {
+    setCopiedText(true);
+    setTimeout(() => setCopiedText(false), 4000);
+
     try {
       const htmlText = buildHtmlReport();
-      const blobHtml = new Blob([htmlText], { type: 'text/html' });
-      const blobText = new Blob([formattedDocMarkdown], { type: 'text/plain' });
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': blobHtml,
-          'text/plain': blobText,
-        }),
-      ]);
+      await copyHtmlAndTextToClipboard(htmlText, formattedDocMarkdown);
     } catch (e) {
-      await navigator.clipboard.writeText(formattedDocMarkdown);
+      console.warn('Copy text warning:', e);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
   };
 
   const handleDownloadDoc = () => {
-    const htmlBlob = new Blob([buildHtmlReport()], { type: 'application/msword;charset=utf-8' });
-    const url = URL.createObjectURL(htmlBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${docTitle.replace(/[^a-zA-Z0-9а-яА-Я_-]/gi, '_')}.doc`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (downloadDocStatus === 'downloading') return;
+    setDownloadDocStatus('downloading');
+
+    try {
+      const htmlContent = buildHtmlReport();
+      const htmlBlob = new Blob([htmlContent], { type: 'application/msword;charset=utf-8' });
+      const url = URL.createObjectURL(htmlBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${docTitle.replace(/[^a-zA-Z0-9а-яА-Я_-]/gi, '_')}.doc`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      setDownloadDocStatus('downloaded');
+      setTimeout(() => setDownloadDocStatus('idle'), 4500);
+    } catch (e) {
+      console.error('Download doc failed:', e);
+      setDownloadDocStatus('idle');
+    }
   };
 
   return (
@@ -391,11 +449,15 @@ ${
 
             <button
               onClick={handleCopyAndOpenGoogleDocs}
-              className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2 transition active:scale-95 whitespace-nowrap"
+              className={`px-5 py-3 rounded-xl text-white text-xs font-bold shadow-lg flex items-center justify-center gap-2 transition active:scale-95 whitespace-nowrap ${
+                copiedDocs
+                  ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/30'
+                  : 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/30'
+              }`}
             >
-              {copied ? (
+              {copiedDocs ? (
                 <>
-                  <Check className="w-4 h-4 text-emerald-300" />
+                  <Check className="w-4 h-4 text-white" />
                   <span>Скопировано! Открываем...</span>
                 </>
               ) : (
@@ -407,43 +469,103 @@ ${
             </button>
           </div>
 
-          {copied && (
-            <div className="mt-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-              <Check className="w-4 h-4 flex-shrink-0" />
-              <span>Форматированный текст в буфере обмена! В открывшемся документе нажмите <strong>Ctrl + V</strong>.</span>
+          {/* Prominent Green Notification */}
+          {copiedDocs && (
+            <div className="mt-4 p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-200 text-xs sm:text-sm flex items-start sm:items-center gap-3 shadow-lg shadow-emerald-950/40">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/30 flex items-center justify-center flex-shrink-0 text-emerald-300">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-white text-xs sm:text-sm">Текст отчета успешно скопирован в буфер обмена!</p>
+                <p className="text-[11px] sm:text-xs text-emerald-300/90 mt-0.5">
+                  Новый Google Документ открывается в соседней вкладке. Нажмите в нем <kbd className="px-1.5 py-0.5 rounded bg-slate-900 border border-emerald-500/50 text-white font-mono font-bold text-[11px]">Ctrl + V</kbd> — все стили и шрифт Arial применятся автоматически.
+                </p>
+              </div>
             </div>
           )}
         </div>
 
         {/* Alternative Options */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-          <button
-            onClick={handleCopyOnly}
-            className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-left transition flex items-center justify-between"
-          >
-            <div>
-              <p className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                <Copy className="w-3.5 h-3.5 text-emerald-400" /> Скопировать текст в буфер
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Вставить в Word, Telegram или Notion</p>
-            </div>
-            <span className="text-xs text-slate-400">
-              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </span>
-          </button>
+        <div className="space-y-3 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onClick={handleCopyOnly}
+              className={`p-3.5 rounded-xl border text-left transition flex items-center justify-between ${
+                copiedText
+                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
+                  : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+              }`}
+            >
+              <div>
+                <p className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  {copiedText ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                  <span>{copiedText ? 'Текст скопирован!' : 'Скопировать текст в буфер'}</span>
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Вставить в Word, Telegram или Notion</p>
+              </div>
+              <span className="text-xs text-slate-400">
+                {copiedText ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              </span>
+            </button>
 
-          <button
-            onClick={handleDownloadDoc}
-            className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-left transition flex items-center justify-between"
-          >
-            <div>
-              <p className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                <Download className="w-3.5 h-3.5 text-purple-400" /> Скачать файл Word (.doc)
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">В чистом шрифте Arial для Word или Google Диска</p>
+            <button
+              onClick={handleDownloadDoc}
+              disabled={downloadDocStatus === 'downloading'}
+              className={`p-3.5 rounded-xl border text-left transition flex items-center justify-between ${
+                downloadDocStatus === 'downloaded'
+                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
+                  : downloadDocStatus === 'downloading'
+                  ? 'bg-slate-900 border-blue-500/50 cursor-wait'
+                  : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+              }`}
+            >
+              <div>
+                <p className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  {downloadDocStatus === 'downloaded' ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5 text-purple-400" />
+                  )}
+                  <span>
+                    {downloadDocStatus === 'downloaded'
+                      ? 'Файл Word скачан!'
+                      : downloadDocStatus === 'downloading'
+                      ? 'Формируем файл...'
+                      : 'Скачать файл Word (.doc)'}
+                  </span>
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {downloadDocStatus === 'downloaded'
+                    ? 'Проверьте загрузки браузера'
+                    : 'В чистом шрифте Arial для Word или Google Диска'}
+                </p>
+              </div>
+              {downloadDocStatus === 'downloaded' ? (
+                <Check className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <Download className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
+          </div>
+
+          {/* Feedback alerts for alternative options */}
+          {downloadDocStatus === 'downloaded' && (
+            <div className="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+              <span>Файл <strong>.doc</strong> успешно сформирован и загружен! Проверьте папку «Загрузки».</span>
             </div>
-            <Download className="w-4 h-4 text-slate-400" />
-          </button>
+          )}
+
+          {copiedText && (
+            <div className="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+              <span>Текст отчета скопирован! Теперь вы можете вставить его через <strong>Ctrl + V</strong> в любую программу.</span>
+            </div>
+          )}
         </div>
 
         {/* Text Preview Box */}

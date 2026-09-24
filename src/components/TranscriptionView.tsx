@@ -38,6 +38,7 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
   const [activeTab, setActiveTab] = useState<'analytics' | 'transcript' | 'tokens'>('analytics');
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
+  const [downloadedTxt, setDownloadedTxt] = useState(false);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(0);
   const [transcriptViewMode, setTranscriptViewMode] = useState<'segments' | 'verbatim'>('segments');
 
@@ -107,8 +108,12 @@ ${
     const link = document.createElement('a');
     link.href = url;
     link.download = `${record.title.replace(/[^a-zA-Z0-9а-яА-Я_-]/gi, '_')}_отчет.txt`;
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setDownloadedTxt(true);
+    setTimeout(() => setDownloadedTxt(false), 3500);
   };
 
   const filteredTranscriptSegments = record.segments.filter((s) =>
@@ -160,10 +165,14 @@ ${
 
             <button
               onClick={handleDownloadTxt}
-              className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1.5 transition"
+              className={`px-3.5 py-2.5 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition ${
+                downloadedTxt
+                  ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+              }`}
             >
-              <Download className="w-4 h-4 text-slate-400" />
-              <span>Скачать TXT</span>
+              {downloadedTxt ? <Check className="w-4 h-4 text-white" /> : <Download className="w-4 h-4 text-slate-400" />}
+              <span>{downloadedTxt ? 'Отчет TXT скачан!' : 'Скачать TXT'}</span>
             </button>
 
             <button
