@@ -85,7 +85,17 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
-            Все платформы
+            Все записи ({transcriptions.length})
+          </button>
+          <button
+            onClick={() => setPlatformFilter('file_upload')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+              platformFilter === 'file_upload'
+                ? 'bg-purple-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            <FileAudio className="w-3.5 h-3.5" /> Файлы ({transcriptions.filter((t) => t.platform === 'file_upload').length})
           </button>
           <button
             onClick={() => setPlatformFilter('youtube')}
@@ -95,7 +105,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                 : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
-            <Youtube className="w-3.5 h-3.5" /> YouTube
+            <Youtube className="w-3.5 h-3.5" /> YouTube ({transcriptions.filter((t) => t.platform === 'youtube').length})
           </button>
           <button
             onClick={() => setPlatformFilter('yandex_disk')}

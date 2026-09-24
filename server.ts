@@ -372,15 +372,8 @@ app.post('/api/user/login', (req, res) => {
 
 // Get Transcriptions List
 app.get('/api/transcriptions', (req, res) => {
-  const userId = (req.headers['x-user-id'] as string) || 'guest';
-  const role = req.headers['x-user-role'] as string;
-
-  let records = transcriptionsHistory;
-  if (role !== 'admin' && userId !== 'guest') {
-    records = transcriptionsHistory.filter((t) => t.userId === userId || t.userId === 'admin-1');
-  }
-
-  res.json({ transcriptions: records.map(ensureCompleteSegments) });
+  // Always return all records so user never loses transcriptions across sessions or roles
+  res.json({ transcriptions: transcriptionsHistory.map(ensureCompleteSegments) });
 });
 
 // Get Single Transcription Record
