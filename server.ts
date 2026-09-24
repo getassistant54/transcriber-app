@@ -215,37 +215,53 @@ let systemStats: SystemStats = {
 };
 
 // Helper: Extract details from Video URLs
-function parseVideoLinkInfo(url: string): { platform: VideoPlatform; title: string; simulatedDuration: number } {
+async function parseVideoLinkInfo(url: string): Promise<{ platform: VideoPlatform; title: string; simulatedDuration: number }> {
   const cleanUrl = url.trim().toLowerCase();
   
   if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
+    const videoId = url.split('v=')[1]?.split('&')[0] || url.split('youtu.be/')[1]?.split('?')[0];
     return {
       platform: 'youtube',
-      title: 'YouTube Видео: ' + (url.split('v=')[1]?.split('&')[0] || 'Интервью / Запись встречи'),
+      title: videoId ? `YouTube: ${videoId}` : 'YouTube Видео',
       simulatedDuration: 1800, // 30 mins
     };
   } else if (cleanUrl.includes('rutube.ru')) {
-    return {
-      platform: 'rutube',
-      title: 'Rutube Видео: ' + (url.split('/video/')[1]?.replace('/', '') || 'Вебинар / Выступление'),
-      simulatedDuration: 2400, // 40 mins
-    };
+    const videoIdMatch = url.match(/\/video\/([a-zA-Z0-9_-]+)/);
+    let title = 'Rutube Видео: ' + (videoIdMatch ? videoIdMatch[1] : 'Вебинар');
+    let simulatedDuration = 2400; // 40 mins
+    if (videoIdMatch) {
+      try {
+        const rRes = await fetch(`https://rutube.ru/api/video/${videoIdMatch[1]}/`, { signal: AbortSignal.timeout(3000) });
+        if (rRes.ok) {
+          const rData: any = await rRes.json();
+          if (rData.title) title = `Rutube: ${rData.title}`;
+          if (rData.duration) simulatedDuration = rData.duration;
+        }
+      } catch (e) {}
+    }
+    return { platform: 'rutube', title, simulatedDuration };
   } else if (cleanUrl.includes('disk.yandex') || cleanUrl.includes('yadi.sk')) {
-    return {
-      platform: 'yandex_disk',
-      title: 'Яндекс Диск: Облачная аудио/видеозапись',
-      simulatedDuration: 2700, // 45 mins
-    };
+    let title = 'Яндекс Диск: Облачная аудио/видеозапись';
+    let simulatedDuration = 2700; // 45 mins
+    try {
+      const ydRes = await fetch(`https://cloud-api.yandex.net/v1/disk/public/resources?public_key=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(3000) });
+      if (ydRes.ok) {
+        const ydData: any = await ydRes.json();
+        if (ydData.name) title = `Яндекс Диск: ${ydData.name}`;
+      }
+    } catch (e) {}
+    return { platform: 'yandex_disk', title, simulatedDuration };
   } else if (cleanUrl.includes('drive.google.com')) {
+    const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
     return {
       platform: 'google_drive',
-      title: 'Google Drive: Запись созвона / Совещание',
+      title: fileIdMatch ? `Google Drive: Запись созвона (${fileIdMatch[1].slice(0, 8)}...)` : 'Google Drive: Запись созвона',
       simulatedDuration: 1500, // 25 mins
     };
   } else {
     return {
       platform: 'direct_url',
-      title: 'Медиафайл по прямой ссылке / загруженный файл',
+      title: 'Медиафайл по прямой ссылке',
       simulatedDuration: 1200, // 20 mins
     };
   }
@@ -412,7 +428,7 @@ app.post('/api/transcribe', async (req, res) => {
     }
 
     // Determine platform and meta
-    let linkInfo = url ? parseVideoLinkInfo(url) : { platform: 'file_upload' as VideoPlatform, title: fileName || 'Загруженный аудио/видео файл', simulatedDuration: 1500 };
+    let linkInfo = url ? await parseVideoLinkInfo(url) : { platform: 'file_upload' as VideoPlatform, title: fileName || 'Загруженный аудио/видео файл', simulatedDuration: 1500 };
     if (customTitle) {
       linkInfo.title = customTitle;
     }
