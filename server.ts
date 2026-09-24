@@ -356,23 +356,40 @@ app.post('/api/transcribe', async (req, res) => {
 
     // Fetch real subtitles for YouTube
     if (url && (url.includes('youtube.com') || url.includes('youtu.be'))) {
-      try {
-        console.log(`[YouTube] Запрос реальных субтитров для: ${url}`);
-        const transcriptItems = await YoutubeTranscript.fetchTranscript(url);
-        if (transcriptItems && transcriptItems.length > 0) {
-          const lastItem = transcriptItems[transcriptItems.length - 1];
-          durationSeconds = Math.max(30, Math.round((lastItem.offset + lastItem.duration) / 1000));
-          
-          realTranscriptText = transcriptItems.map(item => {
-            const sec = Math.round(item.offset / 1000);
-            return `[${formatTimestamp(sec)}] ${item.text}`;
-          }).join('\n');
+      const preferredLang = (language && language.toLowerCase().includes('рус')) ? 'ru' : 'en';
+      let transcriptItems: any[] | null = null;
 
-          isRealSubtitles = true;
-          console.log(`[YouTube] Успешно получено ${transcriptItems.length} строк субтитров, длительность: ~${Math.round(durationSeconds / 60)} мин.`);
+      try {
+        console.log(`[YouTube] Запрос реальных субтитров (${preferredLang}) для: ${url}`);
+        transcriptItems = await YoutubeTranscript.fetchTranscript(url, { lang: preferredLang });
+      } catch (ytErr1: any) {
+        console.log(`[YouTube] Субтитры '${preferredLang}' не найдены, пробуем запасные дорожки...`);
+        try {
+          if (preferredLang !== 'ru') {
+            transcriptItems = await YoutubeTranscript.fetchTranscript(url, { lang: 'ru' });
+          }
+        } catch (ytErr2: any) {}
+
+        if (!transcriptItems || transcriptItems.length === 0) {
+          try {
+            transcriptItems = await YoutubeTranscript.fetchTranscript(url);
+          } catch (ytErr3: any) {
+            console.warn(`[YouTube] Не удалось автоматически получить субтитры: ${ytErr3.message}`);
+          }
         }
-      } catch (ytErr: any) {
-        console.warn(`[YouTube] Не удалось автоматически получить субтитры: ${ytErr.message}`);
+      }
+
+      if (transcriptItems && transcriptItems.length > 0) {
+        const lastItem = transcriptItems[transcriptItems.length - 1];
+        durationSeconds = Math.max(30, Math.round((lastItem.offset + lastItem.duration) / 1000));
+        
+        realTranscriptText = transcriptItems.map(item => {
+          const sec = Math.round(item.offset / 1000);
+          return `[${formatTimestamp(sec)}] ${item.text}`;
+        }).join('\n');
+
+        isRealSubtitles = true;
+        console.log(`[YouTube] Успешно получено ${transcriptItems.length} строк субтитров, длительность: ~${Math.round(durationSeconds / 60)} мин.`);
       }
     }
 
@@ -400,11 +417,13 @@ ${realTranscriptText.slice(0, 45000)}
 """
 ВНИМАНИЕ: Опирайся СТРОГО на предоставленный реальный текст выше! Сохраняй реальные таймкоды, извлекай реальные задачи и цитаты спикеров. Не выдумывай факты!` : `Видеозапись длительностью около ${durationMinutes} минут с подробным обсуждением рабочих задач, планов, докладов и ответов на вопросы.`}
 
-ВАЖНО: Верни ответ СТРОГО в формате JSON со следующими полями:
+ВАЖНО: Все поля ответа (включая "verbatimTranscript", "segments", "summary", "chapters", "actionItems") ОБЯЗАТЕЛЬНО должны быть на языке: ${language}! Если исходная стенограмма на другом языке — переведи её на ${language}.
+
+Верни ответ СТРОГО в формате JSON со следующими полями:
 {
-  "verbatimTranscript": "Полный связный текст расшифровки с разбивкой по таймкодам [MM:SS] и именами спикеров (Спикер 1, Спикер 2)...",
+  "verbatimTranscript": "Полный связный текст расшифровки на языке (${language}) с разбивкой по таймкодам [MM:SS] и именами спикеров (Спикер 1, Спикер 2)...",
   "segments": [
-    { "speaker": "Спикер 1", "startTime": "00:00", "startSeconds": 0, "text": "..." }
+    { "speaker": "Спикер 1", "startTime": "00:00", "startSeconds": 0, "text": "Текст реплики..." }
   ],
   "summary": "Подробное вводное саммари встречи/видео (2-4 абзаца)...",
   "mainTakeaways": [
