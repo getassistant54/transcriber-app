@@ -17,6 +17,8 @@ import {
   Monitor,
   Video,
   Info,
+  PhoneCall,
+  Building2,
 } from 'lucide-react';
 
 interface TranscribeFormProps {
@@ -29,6 +31,8 @@ interface TranscribeFormProps {
     fileName?: string;
     fileBase64?: string;
     fileMimeType?: string;
+    businessNiche?: string;
+    customAiPrompt?: string;
   }) => void;
   isLoading: boolean;
   isGuest: boolean;
@@ -58,6 +62,8 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   const [uploadedFileMimeType, setUploadedFileMimeType] = useState<string | null>(null);
   const [fileSizeMb, setFileSizeMb] = useState<number | null>(null);
   const [fileReading, setFileReading] = useState<boolean>(false);
+  const [businessNiche, setBusinessNiche] = useState('');
+  const [customAiPrompt, setCustomAiPrompt] = useState('');
 
   const platformPresets: { id: VideoPlatform; name: string; icon: React.ReactNode; color: string; placeholder: string }[] = [
     {
@@ -99,21 +105,28 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     {
       id: 'screencast',
       name: 'Скринкаст / Презентация',
-      desc: 'ИИ-Зрение: текст слайдов, действия на экране, софт и настройки.',
+      desc: 'ИИ-Зрение: текст слайдов, действия на экране, софт и регламент.',
       icon: <Monitor className="w-5 h-5 text-emerald-400" />,
       badge: 'PRO Видео',
     },
     {
       id: 'lecture',
       name: 'Лекция / Вебинар',
-      desc: 'Конспектирует термины, логические главы и ключевые тезисы.',
+      desc: 'Конспект, термины, глоссарий, квиз-вопросы и база знаний.',
       icon: <GraduationCap className="w-5 h-5 text-indigo-400" />,
     },
     {
       id: 'podcast',
       name: 'Подкаст / Интервью',
-      desc: 'Собирает яркие цитаты, хронологию спикеров и темы.',
+      desc: 'Медиа-пак: пост в Telegram, статья для VC/блога и цитаты.',
       icon: <Mic className="w-5 h-5 text-purple-400" />,
+    },
+    {
+      id: 'sales_call',
+      name: 'Звонок / CustDev / Продажи',
+      desc: 'Боли клиента, возражения, бюджет и вероятность сделки.',
+      icon: <PhoneCall className="w-5 h-5 text-rose-400" />,
+      badge: 'Enterprise 👑',
     },
     {
       id: 'quick_summary',
@@ -138,6 +151,8 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       fileName: uploadedFileName || undefined,
       fileBase64: inputMode === 'file' ? (uploadedFileBase64 || undefined) : undefined,
       fileMimeType: inputMode === 'file' ? (uploadedFileMimeType || undefined) : undefined,
+      businessNiche: businessNiche.trim() || undefined,
+      customAiPrompt: customAiPrompt.trim() || undefined,
     });
   };
 
@@ -152,9 +167,27 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     setSelectedPlatform(platformId);
     if (platformId === 'file_upload') {
       setInputMode('file');
+    } else if (platformId === 'kinescope') {
+      setInputMode('url');
+      setPreset('lecture'); // Kinescope is predominantly webinar / course lecture
+      clearUploadedFile();
     } else {
       setInputMode('url');
       clearUploadedFile();
+    }
+  };
+
+  const handleUrlChange = (val: string) => {
+    setInputUrl(val);
+    const lower = val.toLowerCase();
+    if (lower.includes('kinescope.io')) {
+      setSelectedPlatform('kinescope');
+      setPreset('lecture');
+    } else if (lower.includes('youtube.com') || lower.includes('youtu.be')) {
+      setSelectedPlatform('youtube');
+      if (lower.includes('podcast') || lower.includes('interview')) {
+        setPreset('podcast');
+      }
     }
   };
 
@@ -187,9 +220,11 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       setFileSizeMb(sizeMb);
       setUploadedFileMimeType(mime);
 
-      // Auto-select 'screencast' preset for video files
+      // Smart preset linking: video -> screencast/instruction, audio -> meeting
       if (isVideo) {
         setPreset('screencast');
+      } else {
+        setPreset('meeting');
       }
 
       setFileReading(true);
@@ -319,7 +354,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
               <input
                 type="url"
                 value={inputUrl}
-                onChange={(e) => setInputUrl(e.target.value)}
+                onChange={(e) => handleUrlChange(e.target.value)}
                 placeholder={
                   selectedPlatform === 'kinescope'
                     ? 'Вставьте ссылку на Kinescope (например: https://kinescope.io/...)'
@@ -398,7 +433,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
           <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">
             Режим анализа &amp; Фокус ИИ:
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {analysisPresetsList.map((p) => {
               const isSelected = preset === p.id;
               return (
@@ -418,7 +453,11 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
                         <span className="font-semibold text-sm text-white">{p.name}</span>
                       </div>
                       {p.badge && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border whitespace-nowrap ${
+                          p.id === 'sales_call'
+                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                        }`}>
                           {p.badge}
                         </span>
                       )}
@@ -429,6 +468,52 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
               );
             })}
           </div>
+
+          {/* Enterprise Business Inputs (Niche & Custom Prompt) */}
+          {preset === 'sales_call' && (
+            <div className="mt-4 bg-gradient-to-r from-rose-950/40 via-purple-950/20 to-slate-900 border border-rose-500/40 rounded-xl p-4 sm:p-5 space-y-3.5 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-rose-300 font-semibold text-xs sm:text-sm">
+                  <PhoneCall className="w-4 h-4 text-rose-400" />
+                  <span>Бизнес-настройки для CustDev / Созвона по продажам</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold uppercase w-fit">
+                  Enterprise 👑
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                ИИ проанализирует говорящие головы, аргументы, интонации и возражения клиентов с учетом специфики вашей ниши.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-rose-400" />
+                    Ниша / Сфера вашего бизнеса:
+                  </label>
+                  <input
+                    type="text"
+                    value={businessNiche}
+                    onChange={(e) => setBusinessNiche(e.target.value)}
+                    placeholder="например: Онлайн-школа, Недвижимость, B2B SaaS, IT-услуги..."
+                    className="w-full bg-slate-950/80 border border-slate-700 rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+                    Свой промпт / Фокус анализа для ИИ:
+                  </label>
+                  <input
+                    type="text"
+                    value={customAiPrompt}
+                    onChange={(e) => setCustomAiPrompt(e.target.value)}
+                    placeholder="например: Почему клиент сомневается и упомянул ли он наших конкурентов?"
+                    className="w-full bg-slate-950/80 border border-slate-700 rounded-lg px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 transition"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Submit Button & Guest Warning */}

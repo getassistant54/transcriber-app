@@ -154,6 +154,8 @@ export default function App() {
     fileName?: string;
     fileBase64?: string;
     fileMimeType?: string;
+    businessNiche?: string;
+    customAiPrompt?: string;
   }) => {
     setIsLoading(true);
     setErrorMsg(null);

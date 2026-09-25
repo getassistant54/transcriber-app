@@ -34,6 +34,8 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
       fileName,
       fileBase64,
       fileMimeType,
+      businessNiche,
+      customAiPrompt,
     } = req.body;
 
     const userId = (req.headers['x-user-id'] as string) || 'guest';
@@ -101,6 +103,8 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
       isVideoFile: !!isVideoFile,
       fileName,
       realTranscriptText: realTranscriptText || undefined,
+      businessNiche: businessNiche || undefined,
+      customAiPrompt: customAiPrompt || undefined,
     });
 
     let parsedResponse: any = null;
@@ -204,6 +208,10 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
       mainTakeaways: parsedResponse.mainTakeaways || [],
       sentimentAndTone: parsedResponse.sentimentAndTone || 'Нейтральный',
       stepByStepGuide: parsedResponse.stepByStepGuide || undefined,
+      lectureStudyGuide: parsedResponse.lectureStudyGuide || undefined,
+      podcastMediaPack: parsedResponse.podcastMediaPack || undefined,
+      quickSummaryCard: parsedResponse.quickSummaryCard || undefined,
+      salesCallAnalysis: parsedResponse.salesCallAnalysis || undefined,
     };
 
     const fullVerbatim = parsedResponse.verbatimTranscript || realTranscriptText || '';
@@ -232,6 +240,8 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
       analysis,
       tokenCost,
       googleDocUrl: `https://docs.google.com/document/create?title=${encodeURIComponent(linkInfo.title)}`,
+      businessNiche: businessNiche || undefined,
+      customAiPrompt: customAiPrompt || undefined,
     };
 
     prependTranscriptionRecord(newRecord);
