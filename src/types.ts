@@ -1,4 +1,4 @@
-export type VideoPlatform = 'youtube' | 'rutube' | 'yandex_disk' | 'google_drive' | 'kinescope' | 'direct_url' | 'file_upload';
+export type VideoPlatform = 'youtube' | 'rutube' | 'yandex_disk' | 'google_drive' | 'kinescope' | 'zoom' | 'direct_url' | 'file_upload';
 
 export type AnalysisPreset = 'meeting' | 'lecture' | 'podcast' | 'screencast' | 'quick_summary' | 'sales_call' | 'custom';
 

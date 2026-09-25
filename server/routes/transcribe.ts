@@ -16,6 +16,7 @@ import {
 } from '../storage.js';
 import { parseVideoLinkInfo } from '../extractors/index.js';
 import { extractYouTubeTranscript } from '../extractors/youtube.js';
+import { checkZoomRecording } from '../extractors/zoom.js';
 import { buildAiPrompt } from '../ai/prompts.js';
 import { getGeminiClient, callGeminiModels, generateResilientFallback } from '../ai/gemini.js';
 import { prepareMediaForGemini } from '../ai/mediaUploader.js';
@@ -23,10 +24,24 @@ import { callHydraAi } from '../ai/hydra.js';
 
 export const transcribeRouter = Router();
 
+transcribeRouter.post('/zoom/check', async (req: Request, res: Response) => {
+  try {
+    const { url, passcode } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'URL не передан' });
+    }
+    const result = await checkZoomRecording(url, passcode);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Ошибка проверки Zoom ссылки' });
+  }
+});
+
 transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
   try {
     const {
       url,
+      passcode,
       rawText,
       preset = 'meeting',
       language = 'Русский',
@@ -61,7 +76,14 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
     }
 
     // 2. Identify media and metadata
-    let linkInfo: { platform: VideoPlatform; title: string; simulatedDuration: number; subtitlesText?: string } = {
+    let linkInfo: {
+      platform: VideoPlatform;
+      title: string;
+      simulatedDuration: number;
+      subtitlesText?: string;
+      segments?: any[];
+      hasNativeTranscript?: boolean;
+    } = {
       platform: 'direct_url',
       title: customTitle || 'Прямой ввод / Аудиозапись',
       simulatedDuration: 900,
@@ -70,11 +92,11 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
     let realTranscriptText: string | null = rawText || null;
 
     if (url) {
-      linkInfo = await parseVideoLinkInfo(url);
+      linkInfo = await parseVideoLinkInfo(url, passcode);
       if (linkInfo.platform === 'youtube') {
         const ytTranscript = await extractYouTubeTranscript(url);
         if (ytTranscript) realTranscriptText = ytTranscript;
-      } else if (linkInfo.platform === 'kinescope' && linkInfo.subtitlesText) {
+      } else if (linkInfo.subtitlesText) {
         realTranscriptText = linkInfo.subtitlesText;
       }
     } else if (fileBase64) {
@@ -214,14 +236,16 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
       salesCallAnalysis: parsedResponse.salesCallAnalysis || undefined,
     };
 
-    const fullVerbatim = parsedResponse.verbatimTranscript || realTranscriptText || '';
+    const fullVerbatim = linkInfo.subtitlesText || parsedResponse.verbatimTranscript || realTranscriptText || '';
     const parsedSegments = parseVerbatimToSegments(fullVerbatim);
     const hasEllipses = parsedResponse.segments?.some((s: any) => s.text?.endsWith('...'));
-    const finalSegments = (hasEllipses || parsedSegments.length >= (parsedResponse.segments?.length || 0))
-      ? (parsedSegments.length > 0 ? parsedSegments : (parsedResponse.segments || []))
-      : (parsedResponse.segments && parsedResponse.segments.length > 0)
-        ? parsedResponse.segments
-        : parsedSegments;
+    const finalSegments = (linkInfo.segments && linkInfo.segments.length > 0)
+      ? linkInfo.segments
+      : (hasEllipses || parsedSegments.length >= (parsedResponse.segments?.length || 0))
+        ? (parsedSegments.length > 0 ? parsedSegments : (parsedResponse.segments || []))
+        : (parsedResponse.segments && parsedResponse.segments.length > 0)
+          ? parsedResponse.segments
+          : parsedSegments;
 
     // 8. Create Record & Save
     const newRecord: TranscriptionRecord = {

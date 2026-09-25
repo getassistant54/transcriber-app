@@ -19,11 +19,13 @@ import {
   Info,
   PhoneCall,
   Building2,
+  Lock,
 } from 'lucide-react';
 
 interface TranscribeFormProps {
   onTranscribe: (data: {
     url?: string;
+    passcode?: string;
     rawText?: string;
     preset: AnalysisPreset;
     language: string;
@@ -64,8 +66,39 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   const [fileReading, setFileReading] = useState<boolean>(false);
   const [businessNiche, setBusinessNiche] = useState('');
   const [customAiPrompt, setCustomAiPrompt] = useState('');
+  const [zoomPasscode, setZoomPasscode] = useState('');
+  const [zoomCheckLoading, setZoomCheckLoading] = useState(false);
+  const [zoomInfo, setZoomInfo] = useState<{
+    isZoom?: boolean;
+    requiresPassword?: boolean;
+    topic?: string;
+    durationSeconds?: number;
+    hasNativeTranscript?: boolean;
+    hasAiAnalyze?: boolean;
+    transcriptCount?: number;
+    error?: string;
+  } | null>(null);
 
-
+  const checkZoom = async (url: string, code?: string) => {
+    if (!url.trim()) return;
+    setZoomCheckLoading(true);
+    try {
+      const res = await fetch('/api/zoom/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url.trim(), passcode: code?.trim() }),
+      });
+      const data = await res.json();
+      setZoomInfo(data);
+      if (data.topic && !customTitle) {
+        setCustomTitle(data.topic);
+      }
+    } catch (e: any) {
+      setZoomInfo({ isZoom: true, requiresPassword: false, error: e.message || 'Ошибка проверки Zoom' });
+    } finally {
+      setZoomCheckLoading(false);
+    }
+  };
 
   const analysisPresetsList: {
     id: AnalysisPreset;
@@ -122,6 +155,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
 
     onTranscribe({
       url: inputMode === 'url' ? inputUrl.trim() : undefined,
+      passcode: inputMode === 'url' && selectedPlatform === 'zoom' ? (zoomPasscode.trim() || undefined) : undefined,
       rawText: inputMode === 'text' ? rawTextInput.trim() : undefined,
       preset,
       language,
@@ -141,19 +175,32 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     setFileSizeMb(null);
   };
 
-
-
   const handleUrlChange = (val: string) => {
     setInputUrl(val);
     const lower = val.toLowerCase();
     if (lower.includes('kinescope.io')) {
       setSelectedPlatform('kinescope');
       setPreset('lecture');
+      setZoomInfo(null);
     } else if (lower.includes('youtube.com') || lower.includes('youtu.be')) {
       setSelectedPlatform('youtube');
       if (lower.includes('podcast') || lower.includes('interview')) {
         setPreset('podcast');
       }
+      setZoomInfo(null);
+    } else if (lower.includes('zoom.us/rec/') || lower.includes('zoom.us/recording/')) {
+      setSelectedPlatform('zoom');
+      setPreset('meeting');
+      let pwd = '';
+      try {
+        const u = new URL(val);
+        const p = u.searchParams.get('pwd');
+        if (p) pwd = p;
+      } catch (e) {}
+      if (pwd) setZoomPasscode(pwd);
+      checkZoom(val, pwd || zoomPasscode);
+    } else {
+      setZoomInfo(null);
     }
   };
 
@@ -262,7 +309,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
                 }`}
               >
                 <Youtube className="w-4 h-4" />
-                <span>🔗 Ссылка (YouTube / Kinescope)</span>
+                <span>🔗 Ссылка (YouTube / Kinescope / Zoom)</span>
               </button>
               <button
                 type="button"
@@ -294,37 +341,121 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
 
           {/* Main Input Controls */}
           {inputMode === 'url' && (
-            <div className="relative">
-              <input
-                type="url"
-                value={inputUrl}
-                onChange={(e) => handleUrlChange(e.target.value)}
-                placeholder="Вставьте ссылку на YouTube или Kinescope (например: https://...)"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pr-28 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition shadow-inner"
-                required
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                {selectedPlatform === 'kinescope' && (
-                  <span className="text-[10px] font-semibold bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2 py-0.5 rounded">
-                    Kinescope
-                  </span>
-                )}
-                {selectedPlatform === 'youtube' && (
-                  <span className="text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded">
-                    YouTube
-                  </span>
-                )}
-                {inputUrl && (
-                  <button
-                    type="button"
-                    onClick={() => { setInputUrl(''); setSelectedPlatform('direct_url'); }}
-                    className="px-2 py-1 text-xs text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 rounded-md border border-slate-700 transition"
-                    title="Очистить"
-                  >
-                    ✕
-                  </button>
-                )}
+            <div>
+              <div className="relative">
+                <input
+                  type="url"
+                  value={inputUrl}
+                  onChange={(e) => handleUrlChange(e.target.value)}
+                  placeholder="Вставьте ссылку на запись (YouTube, Kinescope или Zoom https://...)"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pr-28 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition shadow-inner"
+                  required
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                  {selectedPlatform === 'zoom' && (
+                    <span className="text-[10px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded flex items-center gap-1">
+                      <Video className="w-3 h-3" /> Zoom
+                    </span>
+                  )}
+                  {selectedPlatform === 'kinescope' && (
+                    <span className="text-[10px] font-semibold bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2 py-0.5 rounded">
+                      Kinescope
+                    </span>
+                  )}
+                  {selectedPlatform === 'youtube' && (
+                    <span className="text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded">
+                      YouTube
+                    </span>
+                  )}
+                  {inputUrl && (
+                    <button
+                      type="button"
+                      onClick={() => { setInputUrl(''); setSelectedPlatform('direct_url'); setZoomInfo(null); setZoomPasscode(''); }}
+                      className="px-2 py-1 text-xs text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 rounded-md border border-slate-700 transition"
+                      title="Очистить"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Zoom Passcode & Status */}
+              {selectedPlatform === 'zoom' && (
+                <div className="mt-3 space-y-2">
+                  {zoomCheckLoading && (
+                    <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center gap-2.5 text-xs text-sky-300">
+                      <Clock className="w-4 h-4 text-sky-400 animate-spin" />
+                      <span>Подключение к Zoom и проверка защиты записи...</span>
+                    </div>
+                  )}
+
+                  {zoomInfo && !zoomCheckLoading && zoomInfo.requiresPassword && (
+                    <div className="p-4 bg-sky-950/40 border border-sky-500/40 rounded-xl space-y-2.5 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-sky-300 flex items-center gap-1.5">
+                          <Lock className="w-4 h-4 text-sky-400" />
+                          Код доступа к записи Zoom (пароль):
+                        </label>
+                        {zoomInfo.error && (
+                          <span className="text-xs text-rose-400 font-medium">{zoomInfo.error}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={zoomPasscode}
+                          onChange={(e) => setZoomPasscode(e.target.value)}
+                          placeholder="Введите пароль к записи (например: xnHU$F9n)..."
+                          className="flex-1 bg-slate-950 border border-sky-500/50 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => checkZoom(inputUrl, zoomPasscode)}
+                          disabled={zoomCheckLoading || !zoomPasscode.trim()}
+                          className="px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition shadow-md shadow-sky-600/30"
+                        >
+                          {zoomCheckLoading ? 'Проверка...' : 'Разблокировать'}
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Запись защищена организатором встречи. Введите секретный код, чтобы открыть доступ к аудио и субтитрам.
+                      </p>
+                    </div>
+                  )}
+
+                  {zoomInfo && !zoomCheckLoading && !zoomInfo.requiresPassword && zoomInfo.topic && (
+                    <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2 text-emerald-300">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>
+                          <strong>{zoomInfo.topic}</strong>
+                          {zoomInfo.durationSeconds ? ` (~${Math.round(zoomInfo.durationSeconds / 60)} мин)` : ''}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {zoomInfo.hasNativeTranscript && (
+                          <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded text-[11px] font-medium border border-emerald-500/30">
+                            ⚡ Встроенные субтитры Zoom ({zoomInfo.transcriptCount} реплик)
+                          </span>
+                        )}
+                        {zoomInfo.hasAiAnalyze && (
+                          <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded text-[11px] font-medium border border-purple-500/30">
+                            ✨ Zoom AI Companion
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {zoomInfo && !zoomCheckLoading && zoomInfo.error && !zoomInfo.requiresPassword && (
+                    <div className="p-3 bg-rose-950/30 border border-rose-500/30 rounded-xl text-xs text-rose-300 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <span>{zoomInfo.error}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

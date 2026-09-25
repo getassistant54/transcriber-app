@@ -1,14 +1,17 @@
-import { VideoPlatform } from '../../src/types.js';
+import { VideoPlatform, SpeakerSegment } from '../../src/types.js';
 import { extractKinescopeData } from './kinescope.js';
+import { isZoomUrl, extractZoomData } from './zoom.js';
 
 export interface VideoLinkInfo {
   platform: VideoPlatform;
   title: string;
   simulatedDuration: number;
   subtitlesText?: string;
+  segments?: SpeakerSegment[];
+  hasNativeTranscript?: boolean;
 }
 
-export async function parseVideoLinkInfo(url: string): Promise<VideoLinkInfo> {
+export async function parseVideoLinkInfo(url: string, passcode?: string): Promise<VideoLinkInfo> {
   const cleanUrl = url.trim().toLowerCase();
 
   if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be')) {
@@ -60,6 +63,16 @@ export async function parseVideoLinkInfo(url: string): Promise<VideoLinkInfo> {
       title: kData.title,
       simulatedDuration: kData.simulatedDuration,
       subtitlesText: kData.subtitlesText,
+    };
+  } else if (isZoomUrl(url)) {
+    const zData = await extractZoomData(url, passcode);
+    return {
+      platform: 'zoom',
+      title: zData.title,
+      simulatedDuration: zData.durationSeconds,
+      subtitlesText: zData.verbatimTranscript,
+      segments: zData.segments,
+      hasNativeTranscript: zData.hasNativeTranscript,
     };
   } else {
     return {

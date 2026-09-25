@@ -147,6 +147,7 @@ export default function App() {
 
   const handleTranscribe = async (payload: {
     url?: string;
+    passcode?: string;
     rawText?: string;
     preset: AnalysisPreset;
     language: string;
