@@ -65,29 +65,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   const [businessNiche, setBusinessNiche] = useState('');
   const [customAiPrompt, setCustomAiPrompt] = useState('');
 
-  const platformPresets: { id: VideoPlatform; name: string; icon: React.ReactNode; color: string; placeholder: string }[] = [
-    {
-      id: 'file_upload',
-      name: 'Файл (Аудио / Скринкаст)',
-      icon: <FileAudio className="w-5 h-5" />,
-      color: 'hover:border-purple-500/50 hover:bg-purple-500/10 text-purple-400',
-      placeholder: '',
-    },
-    {
-      id: 'youtube',
-      name: 'YouTube',
-      icon: <Youtube className="w-5 h-5" />,
-      color: 'hover:border-red-500/50 hover:bg-red-500/10 text-red-400',
-      placeholder: 'Вставьте ссылку на YouTube (например: https://www.youtube.com/watch?v=...)',
-    },
-    {
-      id: 'kinescope',
-      name: 'Kinescope',
-      icon: <PlayCircle className="w-5 h-5" />,
-      color: 'hover:border-violet-500/50 hover:bg-violet-500/10 text-violet-400',
-      placeholder: 'Вставьте ссылку на Kinescope (например: https://kinescope.io/...)',
-    },
-  ];
+
 
   const analysisPresetsList: {
     id: AnalysisPreset;
@@ -163,19 +141,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     setFileSizeMb(null);
   };
 
-  const handleSelectPlatform = (platformId: VideoPlatform) => {
-    setSelectedPlatform(platformId);
-    if (platformId === 'file_upload') {
-      setInputMode('file');
-    } else if (platformId === 'kinescope') {
-      setInputMode('url');
-      setPreset('lecture'); // Kinescope is predominantly webinar / course lecture
-      clearUploadedFile();
-    } else {
-      setInputMode('url');
-      clearUploadedFile();
-    }
-  };
+
 
   const handleUrlChange = (val: string) => {
     setInputUrl(val);
@@ -266,80 +232,58 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
         </p>
       </div>
 
-      {/* Platform Pills */}
-      <div className="mb-6">
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">
-          Выберите источник медиафайла:
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {platformPresets.map((p) => {
-            const isSelected = p.id === 'file_upload' ? inputMode === 'file' : (selectedPlatform === p.id && inputMode === 'url');
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => handleSelectPlatform(p.id)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
-                  isSelected
-                    ? 'bg-blue-600/20 border-blue-500 text-white shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30'
-                    : `bg-slate-800/80 border-slate-700/80 text-slate-300 ${p.color}`
-                }`}
-              >
-                {p.icon}
-                <span className="truncate">{p.name}</span>
-              </button>
-            );
-          })}
-        </div>
 
-        {/* Helpful Tip for Cloud Disks & Zoom */}
-        <div className="mt-2.5 flex items-center gap-2 text-xs text-slate-400 bg-slate-950/40 border border-slate-800/80 rounded-lg px-3 py-2">
-          <Info className="w-4 h-4 text-blue-400 shrink-0" />
-          <span>Записи из Zoom, Rutube, Яндекс Диска или Telegram: просто сохраните файл на устройство и выберите «Файл (Аудио / Скринкаст)».</span>
-        </div>
-      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Input Mode Selector & Field */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => { setInputMode('url'); clearUploadedFile(); }}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                  inputMode === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                🔗 Ссылка на видео
-              </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="inline-flex p-1 bg-slate-950/80 border border-slate-800 rounded-xl">
               <button
                 type="button"
                 onClick={() => setInputMode('file')}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                  inputMode === 'file' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${
+                  inputMode === 'file'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                📁 Загрузить файл (MP3/M4A/WAV)
+                <FileAudio className="w-4 h-4" />
+                <span>📁 Загрузить файл (Видео / Аудио)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setInputMode('url'); clearUploadedFile(); }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition ${
+                  inputMode === 'url'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Youtube className="w-4 h-4" />
+                <span>🔗 Ссылка (YouTube / Kinescope)</span>
               </button>
               <button
                 type="button"
                 onClick={() => { setInputMode('text'); clearUploadedFile(); }}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
-                  inputMode === 'text' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition ${
+                  inputMode === 'text'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                📝 Вставить готовый сырой текст
+                <FileText className="w-4 h-4" />
+                <span>📝 Текст</span>
               </button>
             </div>
 
-            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-              <span>Язык:</span>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span>Язык расшифровки:</span>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-slate-200 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
+                className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:ring-1 focus:ring-blue-500 outline-none"
               >
                 <option value="Русский">Русский 🇷🇺</option>
                 <option value="English">English 🇺🇸</option>
@@ -355,54 +299,78 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
                 type="url"
                 value={inputUrl}
                 onChange={(e) => handleUrlChange(e.target.value)}
-                placeholder={
-                  selectedPlatform === 'kinescope'
-                    ? 'Вставьте ссылку на Kinescope (например: https://kinescope.io/...)'
-                    : selectedPlatform === 'youtube'
-                    ? 'Вставьте ссылку на YouTube (например: https://www.youtube.com/watch?v=...)'
-                    : 'Вставьте ссылку на YouTube, Rutube, Kinescope или Яндекс Диск...'
-                }
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pr-24 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition shadow-inner"
+                placeholder="Вставьте ссылку на YouTube или Kinescope (например: https://...)"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pr-28 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition shadow-inner"
                 required
               />
-              {inputUrl && (
-                <button
-                  type="button"
-                  onClick={() => setInputUrl('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 rounded-md border border-slate-700 transition"
-                  title="Очистить поле ввода"
-                >
-                  ✕ Очистить
-                </button>
-              )}
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                {selectedPlatform === 'kinescope' && (
+                  <span className="text-[10px] font-semibold bg-violet-500/20 text-violet-300 border border-violet-500/30 px-2 py-0.5 rounded">
+                    Kinescope
+                  </span>
+                )}
+                {selectedPlatform === 'youtube' && (
+                  <span className="text-[10px] font-semibold bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded">
+                    YouTube
+                  </span>
+                )}
+                {inputUrl && (
+                  <button
+                    type="button"
+                    onClick={() => { setInputUrl(''); setSelectedPlatform('direct_url'); }}
+                    className="px-2 py-1 text-xs text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 rounded-md border border-slate-700 transition"
+                    title="Очистить"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
           {inputMode === 'file' && (
-            <div className="border-2 border-dashed border-slate-700 hover:border-blue-500/50 bg-slate-950/60 rounded-xl p-6 text-center transition cursor-pointer relative">
+            <div className={`border-2 border-dashed rounded-xl p-6 text-center transition relative ${
+              uploadedFileName
+                ? 'border-emerald-500/50 bg-emerald-950/20'
+                : 'border-slate-700 hover:border-blue-500/50 bg-slate-950/60'
+            }`}>
               <input
                 type="file"
-                accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.aac,.ogg,.flac"
+                accept="audio/*,video/*,.m4a,.mp3,.wav,.mp4,.mov,.webm,.aac,.ogg,.flac"
                 onChange={handleFileUpload}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
               />
-              <FileAudio className="w-10 h-10 mx-auto text-blue-400 mb-2" />
+              <FileAudio className={`w-10 h-10 mx-auto mb-2 ${uploadedFileName ? 'text-emerald-400' : 'text-blue-400'}`} />
               <p className="text-sm font-medium text-slate-200">
                 {fileReading ? (
                   <span className="text-amber-400 flex items-center justify-center gap-1.5 animate-pulse">
                     <Clock className="w-4 h-4" /> Чтение и подготовка файла ({fileSizeMb} МБ)...
                   </span>
                 ) : uploadedFileName ? (
-                  <span className="text-emerald-400 flex items-center justify-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" /> {uploadedFileMimeType?.includes('video') ? 'Видео готово к анализу:' : 'Аудио готово к расшифровке:'} {uploadedFileName} {fileSizeMb ? `(${fileSizeMb} МБ)` : ''}
+                  <span className="text-emerald-400 flex items-center justify-center gap-1.5 font-semibold">
+                    <CheckCircle2 className="w-4 h-4" /> {uploadedFileMimeType?.includes('video') ? 'Видео готово к ИИ-анализу:' : 'Аудио готово к расшифровке:'} {uploadedFileName} {fileSizeMb ? `(${fileSizeMb} МБ)` : ''}
                   </span>
                 ) : (
-                  'Перетащите файл (MP3, M4A, WAV или видео MP4/MOV) сюда или нажмите для выбора'
+                  'Перетащите файл (видео MP4/MOV или аудио MP3/WAV/M4A) сюда или нажмите для выбора'
                 )}
               </p>
-              <p className="text-xs text-slate-500 mt-1">
-                Поддерживаются аудиозаписи и скринкасты/видео до 250 МБ (мультимодальный анализ Gemini AI)
-              </p>
+              <div className="mt-1 flex items-center justify-center gap-3">
+                <p className="text-xs text-slate-500">
+                  Поддерживаются видеозаписи со скринкастами и аудиофайлы до 250 МБ
+                </p>
+                {uploadedFileName && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      clearUploadedFile();
+                    }}
+                    className="relative z-10 text-xs text-rose-400 hover:text-rose-300 underline font-medium ml-2"
+                  >
+                    Удалить файл
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
