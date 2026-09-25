@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { AnalysisPreset, VideoPlatform } from '../types';
 import {
   Youtube,
-  HardDrive,
-  Cloud,
   FileAudio,
   Sparkles,
   PlayCircle,
@@ -16,6 +14,9 @@ import {
   Sliders,
   AlertCircle,
   CheckCircle2,
+  Monitor,
+  Video,
+  Info,
 } from 'lucide-react';
 
 interface TranscribeFormProps {
@@ -45,13 +46,13 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   isGuest,
   guestLimits,
 }) => {
-  const [selectedPlatform, setSelectedPlatform] = useState<VideoPlatform>('youtube');
+  const [selectedPlatform, setSelectedPlatform] = useState<VideoPlatform>('file_upload');
   const [inputUrl, setInputUrl] = useState('');
   const [rawTextInput, setRawTextInput] = useState('');
   const [customTitle, setCustomTitle] = useState('');
   const [preset, setPreset] = useState<AnalysisPreset>('meeting');
   const [language, setLanguage] = useState('Русский');
-  const [inputMode, setInputMode] = useState<'url' | 'file' | 'text'>('url');
+  const [inputMode, setInputMode] = useState<'url' | 'file' | 'text'>('file');
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [uploadedFileBase64, setUploadedFileBase64] = useState<string | null>(null);
   const [uploadedFileMimeType, setUploadedFileMimeType] = useState<string | null>(null);
@@ -59,6 +60,13 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   const [fileReading, setFileReading] = useState<boolean>(false);
 
   const platformPresets: { id: VideoPlatform; name: string; icon: React.ReactNode; color: string; sampleUrl: string }[] = [
+    {
+      id: 'file_upload',
+      name: 'Файл (Аудио / Скринкаст)',
+      icon: <FileAudio className="w-5 h-5" />,
+      color: 'hover:border-purple-500/50 hover:bg-purple-500/10 text-purple-400',
+      sampleUrl: '',
+    },
     {
       id: 'youtube',
       name: 'YouTube',
@@ -73,32 +81,11 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       color: 'hover:border-violet-500/50 hover:bg-violet-500/10 text-violet-400',
       sampleUrl: 'https://kinescope.io/6GNRWVxQpKtCue68QTnY5F',
     },
-    {
-      id: 'rutube',
-      name: 'Rutube',
-      icon: <PlayCircle className="w-5 h-5" />,
-      color: 'hover:border-blue-500/50 hover:bg-blue-500/10 text-blue-400',
-      sampleUrl: 'https://rutube.ru/video/private/a501cccfcde5f5fb1c09f15fc77e9a5b/?p=utRZXj24lvzBjDFyoJ8xlg',
-    },
-    {
-      id: 'yandex_disk',
-      name: 'Яндекс Диск',
-      icon: <HardDrive className="w-5 h-5" />,
-      color: 'hover:border-amber-500/50 hover:bg-amber-500/10 text-amber-400',
-      sampleUrl: 'https://disk.yandex.ru/i/sample_recording_2026',
-    },
-    {
-      id: 'google_drive',
-      name: 'Google Drive',
-      icon: <Cloud className="w-5 h-5" />,
-      color: 'hover:border-emerald-500/50 hover:bg-emerald-500/10 text-emerald-400',
-      sampleUrl: 'https://drive.google.com/file/d/1A2B3C_google_doc_media/view',
-    },
   ];
 
   const demoExamples = [
     {
-      title: '🎬 Пример: Совещание команды (YouTube)',
+      title: '🎬 Пример: Встреча команды (YouTube)',
       url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       preset: 'meeting' as AnalysisPreset,
       platform: 'youtube' as VideoPlatform,
@@ -110,10 +97,10 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       platform: 'kinescope' as VideoPlatform,
     },
     {
-      title: '💼 Пример: Запись встречи (Rutube)',
-      url: 'https://rutube.ru/video/private/a501cccfcde5f5fb1c09f15fc77e9a5b/?p=utRZXj24lvzBjDFyoJ8xlg',
-      preset: 'quick_summary' as AnalysisPreset,
-      platform: 'rutube' as VideoPlatform,
+      title: '🖥 Пример: Разбор экрана / Слайды (PRO)',
+      url: 'https://kinescope.io/6GNRWVxQpKtCue68QTnY5F',
+      preset: 'screencast' as AnalysisPreset,
+      platform: 'kinescope' as VideoPlatform,
     },
   ];
 
@@ -124,27 +111,40 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     setPreset(demo.preset);
   };
 
-  const analysisPresetsList = [
+  const analysisPresetsList: {
+    id: AnalysisPreset;
+    name: string;
+    desc: string;
+    icon: React.ReactNode;
+    badge?: string;
+  }[] = [
     {
-      id: 'meeting' as AnalysisPreset,
+      id: 'meeting',
       name: 'Деловая встреча / Совещание',
       desc: 'Выделяет задачи (Action Items), ответственных, решения и споры.',
       icon: <Briefcase className="w-5 h-5 text-blue-400" />,
     },
     {
-      id: 'lecture' as AnalysisPreset,
+      id: 'screencast',
+      name: 'Скринкаст / Презентация',
+      desc: 'ИИ-Зрение: текст слайдов, действия на экране, софт и настройки.',
+      icon: <Monitor className="w-5 h-5 text-emerald-400" />,
+      badge: 'PRO Видео',
+    },
+    {
+      id: 'lecture',
       name: 'Лекция / Вебинар',
       desc: 'Конспектирует термины, логические главы и ключевые тезисы.',
       icon: <GraduationCap className="w-5 h-5 text-indigo-400" />,
     },
     {
-      id: 'podcast' as AnalysisPreset,
+      id: 'podcast',
       name: 'Подкаст / Интервью',
       desc: 'Собирает яркие цитаты, хронологию спикеров и темы.',
       icon: <Mic className="w-5 h-5 text-purple-400" />,
     },
     {
-      id: 'quick_summary' as AnalysisPreset,
+      id: 'quick_summary',
       name: 'Быстрый обзор (Экспресс)',
       desc: 'Ультра-короткое саммари за 10 секунд и 3 главных вывода.',
       icon: <Zap className="w-5 h-5 text-amber-400" />,
@@ -171,8 +171,12 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
 
   const setSampleLink = (platformId: VideoPlatform, url: string) => {
     setSelectedPlatform(platformId);
-    setInputUrl(url);
-    setInputMode('url');
+    if (platformId === 'file_upload') {
+      setInputMode('file');
+    } else {
+      setInputMode('url');
+      setInputUrl(url);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,7 +221,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
           Расшифровка видео и аудио в текст &amp; AI Саммари
         </h1>
         <p className="text-slate-400 text-sm mt-1 max-w-3xl">
-          Вставьте открытую ссылку на видео или запись встречи с <strong className="text-slate-200">YouTube, Rutube, Яндекс Диска</strong> или <strong className="text-slate-200">Google Drive</strong>. Получите стенограмму, списки задач, таймкоды и экспорт в <strong className="text-blue-400">Google Документы</strong>.
+          Вставьте ссылку на видео с <strong className="text-slate-200">YouTube</strong>, <strong className="text-slate-200">Kinescope</strong> или загрузите медиафайл (<strong className="text-slate-200">аудиозапись или видео со скринкастом/презентацией</strong>). Получите полную стенограмму, действия на экране, список задач и экспорт в <strong className="text-blue-400">Google Документы</strong>.
         </p>
       </div>
 
@@ -226,17 +230,17 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
         <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">
           Выберите источник медиафайла:
         </label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {platformPresets.map((p) => {
-            const isSelected = selectedPlatform === p.id && inputMode === 'url';
+            const isSelected = p.id === 'file_upload' ? inputMode === 'file' : (selectedPlatform === p.id && inputMode === 'url');
             return (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => setSampleLink(p.id, p.sampleUrl)}
-                className={`flex items-center gap-2.5 px-3.5 py-3 rounded-xl border text-sm font-medium transition-all ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
                   isSelected
-                    ? 'bg-blue-600/20 border-blue-500 text-white shadow-lg shadow-blue-500/10'
+                    ? 'bg-blue-600/20 border-blue-500 text-white shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30'
                     : `bg-slate-800/80 border-slate-700/80 text-slate-300 ${p.color}`
                 }`}
               >
@@ -245,6 +249,12 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
               </button>
             );
           })}
+        </div>
+
+        {/* Helpful Tip for Cloud Disks & Zoom */}
+        <div className="mt-2.5 flex items-center gap-2 text-xs text-slate-400 bg-slate-950/40 border border-slate-800/80 rounded-lg px-3 py-2">
+          <Info className="w-4 h-4 text-blue-400 shrink-0" />
+          <span>Записи из Zoom, Rutube, Яндекс Диска или Telegram: просто сохраните файл на устройство и выберите «Файл (Аудио / Скринкаст)».</span>
         </div>
 
         {/* Demo Examples Quick Buttons */}
@@ -388,24 +398,33 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
           <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">
             Режим анализа &amp; Фокус ИИ:
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
             {analysisPresetsList.map((p) => {
               const isSelected = preset === p.id;
               return (
                 <div
                   key={p.id}
                   onClick={() => setPreset(p.id)}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
                     isSelected
                       ? 'bg-blue-600/15 border-blue-500/80 ring-1 ring-blue-500/30'
                       : 'bg-slate-800/50 border-slate-700/60 hover:bg-slate-800 text-slate-300'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1.5">
-                    {p.icon}
-                    <span className="font-semibold text-sm text-white">{p.name}</span>
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        {p.icon}
+                        <span className="font-semibold text-sm text-white">{p.name}</span>
+                      </div>
+                      {p.badge && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                          {p.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed">{p.desc}</p>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">{p.desc}</p>
                 </div>
               );
             })}
