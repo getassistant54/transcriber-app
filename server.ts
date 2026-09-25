@@ -24,7 +24,18 @@ import {
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '350mb' }));
+app.use(express.urlencoded({ limit: '350mb', extended: true }));
+
+// Body parser error handler for payload too large
+app.use((err: any, req: any, res: any, next: any) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({
+      error: 'Файл слишком большой для веб-загрузки (лимит до 250 МБ). Рекомендуется загрузить аудиодорожку или сжать видео перед отправкой.',
+    });
+  }
+  next(err);
+});
 
 // Initialize Gemini Client
 const getGeminiClient = () => {
@@ -584,13 +595,25 @@ app.post('/api/transcribe', async (req, res) => {
       meeting: 'Акцентируй внимание на решениях, задачах (Action Items), назначениях ответственных и сроках. Отметь спорные моменты.',
       lecture: 'Сделай упор на ключевые понятия, определения, тезисы спикера и выводы. Разбей на логические главы.',
       podcast: 'Выдели самые яркие цитаты, интересные мысли, мнения участников и хронологию ключевых тем.',
-      screencast: 'Выполни комплексный аудиовизуальный анализ скринкаста или презентации. Внимательно проанализируй как речь, так и видеоряд (слайды, текст на экране, открытые программы, меню, настройки и действия спикера). В отчете подробно выдели структуру показанного материала, пошаговые инструкции и ключевые тезисы.',
+      screencast: 'Выполни комплексный аудиовизуальный анализ скринкаста или презентации. Внимательно проанализируй как речь, так и видеоряд (слайды, текст на экране, открытые программы, меню, настройки и действия спикера). В отчете подробно выдели структуру показанного материала, пошаговые инструкции и ключевые тезисы. Если в видео мало речи или спикер демонстрирует интерфейс без слов, в verbatimTranscript и segments подробно опиши последовательность действий на экране с таймкодами [MM:SS] (какие разделы открыты, какие параметры заданы, какой текст вводится).',
       quick_summary: 'Сделай максимально краткую выжимку (3-5 главных мыслей), список решенных вопросов и 3 ключевых вывода.',
       custom: adminSettings.customSystemPrompt,
     };
 
     const hasMedia = !!fileBase64;
     const isVideoFile = fileMimeType?.includes('video') || (fileName && /\.(mp4|mov|webm|avi|mkv)$/i.test(fileName));
+
+    let effectiveMimeType = fileMimeType;
+    const fileExt = fileName?.split('.').pop()?.toLowerCase();
+    if (!effectiveMimeType || effectiveMimeType === 'application/octet-stream') {
+      if (fileExt === 'mp4') effectiveMimeType = 'video/mp4';
+      else if (fileExt === 'mov') effectiveMimeType = 'video/quicktime';
+      else if (fileExt === 'webm') effectiveMimeType = 'video/webm';
+      else if (fileExt === 'm4a') effectiveMimeType = 'audio/m4a';
+      else if (fileExt === 'mp3') effectiveMimeType = 'audio/mp3';
+      else if (fileExt === 'wav') effectiveMimeType = 'audio/wav';
+      else effectiveMimeType = isVideoFile ? 'video/mp4' : 'audio/mp3';
+    }
 
     const inputContextDescription = hasMedia
       ? (isVideoFile
@@ -715,55 +738,119 @@ ${inputContextDescription}
       ].filter((m, idx, self) => m && self.indexOf(m) === idx);
 
       const contents: any[] = [];
-      if (fileBase64) {
-        const cleanBase64 = fileBase64.includes('base64,') ? fileBase64.split('base64,')[1] : fileBase64;
-        contents.push({
-          inlineData: {
-            mimeType: fileMimeType || 'audio/mp3',
-            data: cleanBase64,
-          },
-        });
-        console.log(`[Gemini API] Attached inline audio (${fileMimeType || 'audio/mp3'}), base64 length: ${cleanBase64.length}`);
-      }
-      contents.push(aiPrompt);
+      let tempFilePath: string | null = null;
+      let uploadedGeminiFile: any = null;
 
-      for (const currentModel of candidateModels) {
-        if (apiSuccess) break;
+      try {
+        if (fileBase64) {
+          const cleanBase64 = fileBase64.includes('base64,') ? fileBase64.split('base64,')[1] : fileBase64;
+          const fileBuffer = Buffer.from(cleanBase64, 'base64');
+          const bufferSizeMb = fileBuffer.length / (1024 * 1024);
 
-        for (let attempt = 1; attempt <= 2; attempt++) {
-          try {
-            console.log(`[Gemini API] Trying model "${currentModel}" (Attempt ${attempt})...`);
-            const response = await ai.models.generateContent({
-              model: currentModel,
-              contents: contents,
-              config: {
-                systemInstruction: adminSettings.customSystemPrompt,
-                ...(fileBase64 ? {} : { responseMimeType: 'application/json' }),
-                temperature: 0.3,
-              },
+          console.log(`[Media] Received file "${fileName || 'unnamed'}", mime: ${effectiveMimeType}, size: ${bufferSizeMb.toFixed(2)} MB`);
+
+          // If file is a video OR larger than 15MB, upload via Google Files API (ai.files.upload)
+          // because Gemini inlineData fails or is strictly limited to 20MB!
+          if (isVideoFile || bufferSizeMb > 15) {
+            const actualExt = fileExt || (isVideoFile ? 'mp4' : 'mp3');
+            const scratchDir = path.join(process.cwd(), 'scratch');
+            if (!fs.existsSync(scratchDir)) {
+              fs.mkdirSync(scratchDir, { recursive: true });
+            }
+            tempFilePath = path.join(scratchDir, `upload_${Date.now()}.${actualExt}`);
+            fs.writeFileSync(tempFilePath, fileBuffer);
+
+            console.log(`[Gemini Files API] Uploading media to Google Cloud: ${tempFilePath} (${bufferSizeMb.toFixed(2)} MB)...`);
+            uploadedGeminiFile = await ai.files.upload({
+              file: tempFilePath,
+              config: { mimeType: effectiveMimeType },
             });
 
-            const responseText = response.text || '';
-            const usage = response.usageMetadata;
-            inputTokens = usage?.promptTokenCount || Math.round(aiPrompt.length / 3.5);
-            outputTokens = usage?.candidatesTokenCount || Math.round(responseText.length / 3.5);
+            console.log(`[Gemini Files API] Uploaded successfully: ${uploadedGeminiFile.name}, initial state: ${uploadedGeminiFile.state}`);
 
-            // Clean JSON response string from markdown fences if any
-            let cleanedText = responseText.trim();
-            if (cleanedText.startsWith('```')) {
-              cleanedText = cleanedText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+            // Video files require indexing/processing before generateContent
+            let pollCount = 0;
+            while (uploadedGeminiFile.state === 'PROCESSING' && pollCount < 60) {
+              console.log(`[Gemini Files API] Media indexing in progress (state: PROCESSING), waiting 3s... (attempt ${pollCount + 1})`);
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+              uploadedGeminiFile = await ai.files.get({ name: uploadedGeminiFile.name });
+              pollCount++;
             }
 
-            parsedResponse = JSON.parse(cleanedText);
-            actualModelUsed = currentModel;
-            apiSuccess = true;
-            console.log(`[Gemini API] Successfully generated response using model "${currentModel}".`);
-            break;
-          } catch (aiErr: any) {
-            console.warn(`[Gemini API] Model "${currentModel}" attempt ${attempt} failed: ${aiErr.message || aiErr}`);
-            if (attempt < 2) {
-              await new Promise((res) => setTimeout(res, 2500)); // wait 2.5s before retry
+            if (uploadedGeminiFile.state === 'FAILED') {
+              throw new Error('Google Gemini не смог обработать данный файл (статус FAILED). Проверьте формат кодека.');
             }
+
+            console.log(`[Gemini Files API] File is ACTIVE and ready for multimodal analysis.`);
+            contents.push({
+              fileData: {
+                fileUri: uploadedGeminiFile.uri,
+                mimeType: uploadedGeminiFile.mimeType || effectiveMimeType,
+              },
+            });
+          } else {
+            contents.push({
+              inlineData: {
+                mimeType: effectiveMimeType || 'audio/mp3',
+                data: cleanBase64,
+              },
+            });
+            console.log(`[Gemini API] Attached inline media (${effectiveMimeType || 'audio/mp3'}), size: ${bufferSizeMb.toFixed(2)} MB`);
+          }
+        }
+        contents.push(aiPrompt);
+
+        for (const currentModel of candidateModels) {
+          if (apiSuccess) break;
+
+          for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+              console.log(`[Gemini API] Trying model "${currentModel}" (Attempt ${attempt})...`);
+              const response = await ai.models.generateContent({
+                model: currentModel,
+                contents: contents,
+                config: {
+                  systemInstruction: adminSettings.customSystemPrompt,
+                  ...(fileBase64 ? {} : { responseMimeType: 'application/json' }),
+                  temperature: 0.3,
+                },
+              });
+
+              const responseText = response.text || '';
+              const usage = response.usageMetadata;
+              inputTokens = usage?.promptTokenCount || Math.round(aiPrompt.length / 3.5);
+              outputTokens = usage?.candidatesTokenCount || Math.round(responseText.length / 3.5);
+
+              // Clean JSON response string from markdown fences if any
+              let cleanedText = responseText.trim();
+              if (cleanedText.startsWith('```')) {
+                cleanedText = cleanedText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+              }
+
+              parsedResponse = JSON.parse(cleanedText);
+              actualModelUsed = currentModel;
+              apiSuccess = true;
+              console.log(`[Gemini API] Successfully generated response using model "${currentModel}".`);
+              break;
+            } catch (aiErr: any) {
+              console.warn(`[Gemini API] Model "${currentModel}" attempt ${attempt} failed: ${aiErr.message || aiErr}`);
+              if (attempt < 2) {
+                await new Promise((res) => setTimeout(res, 2500)); // wait 2.5s before retry
+              }
+            }
+          }
+        }
+      } finally {
+        if (uploadedGeminiFile?.name) {
+          ai.files.delete({ name: uploadedGeminiFile.name }).catch((delErr) => {
+            console.warn('[Gemini Files API] Cleanup error:', delErr);
+          });
+        }
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+          try {
+            fs.unlinkSync(tempFilePath);
+          } catch (unlinkErr) {
+            console.warn('[Storage] Temp file unlink error:', unlinkErr);
           }
         }
       }

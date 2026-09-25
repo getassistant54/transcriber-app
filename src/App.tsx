@@ -169,10 +169,10 @@ export default function App() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        throw new Error(data.error || 'Ошибка при вызове сервера');
+        throw new Error(data?.error || `Ошибка сервера (${res.status}). Рекомендуется загрузить файл меньшего размера или аудиозапись.`);
       }
 
       if (data.record) {

@@ -182,11 +182,37 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const sizeMb = Math.round((file.size / (1024 * 1024)) * 10) / 10;
+      if (sizeMb > 250) {
+        alert(`Файл "${file.name}" слишком большой (${sizeMb} МБ). Максимальный размер файла для веб-интерфейса — 250 МБ. Пожалуйста, сожмите видео или извлеките аудиодорожку.`);
+        return;
+      }
+
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const isVideo = file.type.startsWith('video/') || ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext);
+
+      let mime = file.type;
+      if (!mime || mime === '') {
+        if (ext === 'mp4') mime = 'video/mp4';
+        else if (ext === 'mov') mime = 'video/quicktime';
+        else if (ext === 'webm') mime = 'video/webm';
+        else if (ext === 'm4a') mime = 'audio/m4a';
+        else if (ext === 'mp3') mime = 'audio/mp3';
+        else if (ext === 'wav') mime = 'audio/wav';
+        else mime = isVideo ? 'video/mp4' : 'audio/mp3';
+      }
+
       setUploadedFileName(file.name);
       setInputMode('file');
       if (!customTitle) setCustomTitle(file.name.replace(/\.[^/.]+$/, ''));
-      setFileSizeMb(Math.round((file.size / (1024 * 1024)) * 10) / 10);
-      setUploadedFileMimeType(file.type || 'audio/mp3');
+      setFileSizeMb(sizeMb);
+      setUploadedFileMimeType(mime);
+
+      // Auto-select 'screencast' preset for video files
+      if (isVideo) {
+        setPreset('screencast');
+      }
+
       setFileReading(true);
 
       const reader = new FileReader();
@@ -197,6 +223,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       };
       reader.onerror = () => {
         setFileReading(false);
+        alert('Не удалось прочитать файл в браузере.');
       };
       reader.readAsDataURL(file);
     }
@@ -355,18 +382,18 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
               <p className="text-sm font-medium text-slate-200">
                 {fileReading ? (
                   <span className="text-amber-400 flex items-center justify-center gap-1.5 animate-pulse">
-                    <Clock className="w-4 h-4" /> Чтение и кодирование файла в память...
+                    <Clock className="w-4 h-4" /> Чтение и подготовка файла ({fileSizeMb} МБ)...
                   </span>
                 ) : uploadedFileName ? (
                   <span className="text-emerald-400 flex items-center justify-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4" /> Файл готов: {uploadedFileName} {fileSizeMb ? `(${fileSizeMb} МБ)` : ''}
+                    <CheckCircle2 className="w-4 h-4" /> {uploadedFileMimeType?.includes('video') ? 'Видео готово к анализу:' : 'Аудио готово к расшифровке:'} {uploadedFileName} {fileSizeMb ? `(${fileSizeMb} МБ)` : ''}
                   </span>
                 ) : (
-                  'Перетащите аудио файл (MP3, M4A, WAV, MP4) сюда или нажмите для выбора'
+                  'Перетащите файл (MP3, M4A, WAV или видео MP4/MOV) сюда или нажмите для выбора'
                 )}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Поддерживаются аудиоформаты M4A, MP3, WAV, MP4 (прямое распознавание через Gemini AI)
+                Поддерживаются аудиозаписи и скринкасты/видео до 250 МБ (мультимодальный анализ Gemini AI)
               </p>
             </div>
           )}
@@ -452,7 +479,11 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>ИИ обрабатывает видео (извлечение &amp; анализ)...</span>
+                <span>
+                  {uploadedFileMimeType?.includes('video') || preset === 'screencast'
+                    ? 'ИИ-Зрение анализирует видеоряд и речь (1-2 мин)...'
+                    : 'ИИ обрабатывает запись (извлечение & анализ)...'}
+                </span>
               </>
             ) : (
               <>
