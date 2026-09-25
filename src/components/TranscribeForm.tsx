@@ -169,6 +169,13 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     });
   };
 
+  const clearUploadedFile = () => {
+    setUploadedFileName(null);
+    setUploadedFileBase64(null);
+    setUploadedFileMimeType(null);
+    setFileSizeMb(null);
+  };
+
   const setSampleLink = (platformId: VideoPlatform, url: string) => {
     setSelectedPlatform(platformId);
     if (platformId === 'file_upload') {
@@ -176,6 +183,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     } else {
       setInputMode('url');
       setInputUrl(url);
+      clearUploadedFile();
     }
   };
 
@@ -308,7 +316,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setInputMode('url')}
+                onClick={() => { setInputMode('url'); clearUploadedFile(); }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
                   inputMode === 'url' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
@@ -326,7 +334,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() => setInputMode('text')}
+                onClick={() => { setInputMode('text'); clearUploadedFile(); }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition ${
                   inputMode === 'text' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'
                 }`}
@@ -480,9 +488,11 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 <span>
-                  {uploadedFileMimeType?.includes('video') || preset === 'screencast'
+                  {inputMode === 'file' && (uploadedFileMimeType?.includes('video') || preset === 'screencast')
                     ? 'ИИ-Зрение анализирует видеоряд и речь (1-2 мин)...'
-                    : 'ИИ обрабатывает запись (извлечение & анализ)...'}
+                    : inputMode === 'url'
+                      ? 'ИИ извлекает и анализирует стенограмму вебинара (15-30 сек)...'
+                      : 'ИИ обрабатывает запись (извлечение & анализ)...'}
                 </span>
               </>
             ) : (
