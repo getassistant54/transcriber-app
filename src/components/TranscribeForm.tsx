@@ -225,10 +225,10 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
           )}
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          Расшифровка видео и аудио в текст &amp; AI Саммари
+          Расшифровка &amp; Экспертный ИИ-Анализ видео и аудио
         </h1>
         <p className="text-slate-400 text-sm mt-1 max-w-3xl">
-          Вставьте ссылку на видео с <strong className="text-slate-200">YouTube</strong>, <strong className="text-slate-200">Kinescope</strong> или загрузите медиафайл (<strong className="text-slate-200">аудиозапись или видео со скринкастом/презентацией</strong>). Получите полную стенограмму, действия на экране, список задач и экспорт в <strong className="text-blue-400">Google Документы</strong>.
+          Загрузите <strong className="text-slate-200">видеофайл (скринкаст) или аудиозапись</strong> либо вставьте ссылку на <strong className="text-slate-200">YouTube</strong> или <strong className="text-slate-200">Kinescope</strong>. ИИ создаст пошаговые регламенты (SOP), учебные конспекты, разборы звонков (CustDev / Продажи), выделит задачи и оформит результат в <strong className="text-blue-400">Google Документы</strong>.
         </p>
       </div>
 

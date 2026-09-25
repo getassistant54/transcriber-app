@@ -383,10 +383,10 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="flex items-center gap-1.5">
             <Video className="w-4 h-4 text-blue-400" />
-            <span>Видео Расшифровщик &amp; AI Аналитик • Powered by Gemini 2.5 Flash</span>
+            <span>Расшифровщик &amp; ИИ-Аналитик • Мультимодальный анализ Gemini AI</span>
           </p>
           <div className="flex items-center gap-4 text-slate-400">
-            <span>Поддержка: YouTube, Rutube, Яндекс Диск, Google Drive</span>
+            <span>Поддержка: Видео и аудио файлы, Kinescope, YouTube</span>
             <span>•</span>
             <span className="text-blue-400">Экспорт в Google Docs</span>
           </div>

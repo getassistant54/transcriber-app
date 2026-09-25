@@ -476,7 +476,7 @@ ${
           </div>
           <div>
             <h2 className="text-xl font-bold text-white">Экспорт в Google Документы &amp; Word</h2>
-            <p className="text-xs text-slate-400">Саммари, выводы, задачи и полная стенограмма в шрифте Arial</p>
+            <p className="text-xs text-slate-400">Инструкции (SOP), учебные конспекты, CustDev-анализ, задачи и стенограмма в шрифте Arial</p>
           </div>
         </div>
 

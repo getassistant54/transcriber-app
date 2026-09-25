@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
-                Транскрибация &amp; ИИ-Аналитика (YouTube, Rutube, Диск)
+                Транскрибация &amp; ИИ-Аналитика (Скринкасты, Вебинары, Kinescope, YouTube)
               </p>
             </div>
           </div>

@@ -77,6 +77,10 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
     switch (platform) {
       case 'youtube':
         return <Youtube className="w-5 h-5 text-red-400" />;
+      case 'kinescope':
+        return <Play className="w-5 h-5 text-violet-400" />;
+      case 'zoom':
+        return <Video className="w-5 h-5 text-blue-400" />;
       case 'rutube':
         return <Play className="w-5 h-5 text-blue-400" />;
       case 'yandex_disk':
@@ -86,6 +90,16 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
       default:
         return <FileAudio className="w-5 h-5 text-purple-400" />;
     }
+  };
+
+  const formatPhrasesCount = (count: number) => {
+    const n = Math.abs(count);
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 19) return `${n} фраз`;
+    if (mod10 === 1) return `${n} фраза`;
+    if (mod10 >= 2 && mod10 <= 4) return `${n} фразы`;
+    return `${n} фраз`;
   };
 
   const handleJumpToTime = (timeStr: string) => {
@@ -314,7 +328,7 @@ ${
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5">
                 {getPlatformIcon(record.platform)}
-                <span className="uppercase">{record.platform.replace('_', ' ')}</span>
+                <span className="uppercase">{record.platform === 'file_upload' ? 'Медиафайл' : record.platform === 'kinescope' ? 'Kinescope' : record.platform.replace('_', ' ')}</span>
               </span>
               <span className="px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-medium flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-blue-400" />
@@ -438,7 +452,7 @@ ${
           }`}
         >
           <FileText className="w-4 h-4 text-blue-300" />
-          <span>Чистая Стенограмма ({record.segments.length || 1} фразы)</span>
+          <span>Чистая Стенограмма ({formatPhrasesCount(record.segments.length || 1)})</span>
         </button>
 
         {currentUser?.role === 'admin' && (

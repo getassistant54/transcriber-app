@@ -36,6 +36,8 @@ export const HistoryList: React.FC<HistoryListProps> = ({
     switch (platform) {
       case 'youtube':
         return <Youtube className="w-4 h-4 text-red-400" />;
+      case 'kinescope':
+        return <Play className="w-4 h-4 text-violet-400" />;
       case 'rutube':
         return <Play className="w-4 h-4 text-blue-400" />;
       case 'yandex_disk':
@@ -96,6 +98,16 @@ export const HistoryList: React.FC<HistoryListProps> = ({
             }`}
           >
             <FileAudio className="w-3.5 h-3.5" /> Файлы ({transcriptions.filter((t) => t.platform === 'file_upload').length})
+          </button>
+          <button
+            onClick={() => setPlatformFilter('kinescope')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 ${
+              platformFilter === 'kinescope'
+                ? 'bg-violet-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            <Play className="w-3.5 h-3.5" /> Kinescope ({transcriptions.filter((t) => t.platform === 'kinescope').length})
           </button>
           <button
             onClick={() => setPlatformFilter('youtube')}
