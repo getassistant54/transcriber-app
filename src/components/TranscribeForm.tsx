@@ -59,57 +59,29 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   const [fileSizeMb, setFileSizeMb] = useState<number | null>(null);
   const [fileReading, setFileReading] = useState<boolean>(false);
 
-  const platformPresets: { id: VideoPlatform; name: string; icon: React.ReactNode; color: string; sampleUrl: string }[] = [
+  const platformPresets: { id: VideoPlatform; name: string; icon: React.ReactNode; color: string; placeholder: string }[] = [
     {
       id: 'file_upload',
       name: 'Файл (Аудио / Скринкаст)',
       icon: <FileAudio className="w-5 h-5" />,
       color: 'hover:border-purple-500/50 hover:bg-purple-500/10 text-purple-400',
-      sampleUrl: '',
+      placeholder: '',
     },
     {
       id: 'youtube',
       name: 'YouTube',
       icon: <Youtube className="w-5 h-5" />,
       color: 'hover:border-red-500/50 hover:bg-red-500/10 text-red-400',
-      sampleUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      placeholder: 'Вставьте ссылку на YouTube (например: https://www.youtube.com/watch?v=...)',
     },
     {
       id: 'kinescope',
       name: 'Kinescope',
       icon: <PlayCircle className="w-5 h-5" />,
       color: 'hover:border-violet-500/50 hover:bg-violet-500/10 text-violet-400',
-      sampleUrl: 'https://kinescope.io/6GNRWVxQpKtCue68QTnY5F',
+      placeholder: 'Вставьте ссылку на Kinescope (например: https://kinescope.io/...)',
     },
   ];
-
-  const demoExamples = [
-    {
-      title: '🎬 Пример: Встреча команды (YouTube)',
-      url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-      preset: 'meeting' as AnalysisPreset,
-      platform: 'youtube' as VideoPlatform,
-    },
-    {
-      title: '🎓 Пример: Лекция психолога (Kinescope с VTT)',
-      url: 'https://kinescope.io/6GNRWVxQpKtCue68QTnY5F',
-      preset: 'lecture' as AnalysisPreset,
-      platform: 'kinescope' as VideoPlatform,
-    },
-    {
-      title: '🖥 Пример: Разбор экрана / Слайды (PRO)',
-      url: 'https://kinescope.io/6GNRWVxQpKtCue68QTnY5F',
-      preset: 'screencast' as AnalysisPreset,
-      platform: 'kinescope' as VideoPlatform,
-    },
-  ];
-
-  const applyDemo = (demo: typeof demoExamples[0]) => {
-    setInputMode('url');
-    setSelectedPlatform(demo.platform);
-    setInputUrl(demo.url);
-    setPreset(demo.preset);
-  };
 
   const analysisPresetsList: {
     id: AnalysisPreset;
@@ -176,13 +148,12 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     setFileSizeMb(null);
   };
 
-  const setSampleLink = (platformId: VideoPlatform, url: string) => {
+  const handleSelectPlatform = (platformId: VideoPlatform) => {
     setSelectedPlatform(platformId);
     if (platformId === 'file_upload') {
       setInputMode('file');
     } else {
       setInputMode('url');
-      setInputUrl(url);
       clearUploadedFile();
     }
   };
@@ -272,7 +243,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
               <button
                 key={p.id}
                 type="button"
-                onClick={() => setSampleLink(p.id, p.sampleUrl)}
+                onClick={() => handleSelectPlatform(p.id)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
                   isSelected
                     ? 'bg-blue-600/20 border-blue-500 text-white shadow-lg shadow-blue-500/10 ring-1 ring-blue-500/30'
@@ -290,21 +261,6 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
         <div className="mt-2.5 flex items-center gap-2 text-xs text-slate-400 bg-slate-950/40 border border-slate-800/80 rounded-lg px-3 py-2">
           <Info className="w-4 h-4 text-blue-400 shrink-0" />
           <span>Записи из Zoom, Rutube, Яндекс Диска или Telegram: просто сохраните файл на устройство и выберите «Файл (Аудио / Скринкаст)».</span>
-        </div>
-
-        {/* Demo Examples Quick Buttons */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium">Быстрый пример:</span>
-          {demoExamples.map((demo, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => applyDemo(demo)}
-              className="text-xs px-2.5 py-1 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1.5 shadow-sm"
-            >
-              <span>{demo.title}</span>
-            </button>
-          ))}
         </div>
       </div>
 
@@ -364,17 +320,26 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
                 type="url"
                 value={inputUrl}
                 onChange={(e) => setInputUrl(e.target.value)}
-                placeholder="Вставьте ссылку на YouTube, Rutube, Kinescope, Яндекс Диск или Google Drive..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pr-28 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition shadow-inner"
+                placeholder={
+                  selectedPlatform === 'kinescope'
+                    ? 'Вставьте ссылку на Kinescope (например: https://kinescope.io/...)'
+                    : selectedPlatform === 'youtube'
+                    ? 'Вставьте ссылку на YouTube (например: https://www.youtube.com/watch?v=...)'
+                    : 'Вставьте ссылку на YouTube, Rutube, Kinescope или Яндекс Диск...'
+                }
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3.5 pr-24 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition shadow-inner"
                 required
               />
-              <button
-                type="button"
-                onClick={() => setInputUrl('https://kinescope.io/6GNRWVxQpKtCue68QTnY5F')}
-                className="absolute right-2 top-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 rounded-lg border border-slate-700 transition"
-              >
-                Демо-ссылка
-              </button>
+              {inputUrl && (
+                <button
+                  type="button"
+                  onClick={() => setInputUrl('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs text-slate-400 hover:text-white bg-slate-800/90 hover:bg-slate-700 rounded-md border border-slate-700 transition"
+                  title="Очистить поле ввода"
+                >
+                  ✕ Очистить
+                </button>
+              )}
             </div>
           )}
 
