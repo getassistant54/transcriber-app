@@ -210,7 +210,7 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
       📘 Пошаговая инструкция / Регламент (SOP)
     </h2>
     <div style="font-family: Arial, Helvetica, sans-serif; background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 14px; border-radius: 4px; margin: 14px 0;">
-      <p style="margin: 0 0 6px 0; color: #065f46; font-size: 11pt;"><b>🎯 Цель (ЦКП):</b> ${record.analysis.stepByStepGuide.goal}</p>
+      <p style="margin: 0 0 6px 0; color: #065f46; font-size: 11pt;"><b>🎯 Цель и результат:</b> ${record.analysis.stepByStepGuide.goal}</p>
       ${record.analysis.stepByStepGuide.prerequisites && record.analysis.stepByStepGuide.prerequisites.length > 0 ? `
       <p style="margin: 6px 0 2px 0; font-size: 10pt; color: #047857;"><b>Предварительные требования / Доступы:</b></p>
       <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 10pt; color: #065f46;">
@@ -315,7 +315,7 @@ ${
 ---
 
 ## 📘 Пошаговая инструкция / Регламент (SOP)
-**🎯 Цель (ЦКП):** ${record.analysis.stepByStepGuide.goal}
+**🎯 Цель и результат:** ${record.analysis.stepByStepGuide.goal}
 
 ${record.analysis.stepByStepGuide.prerequisites && record.analysis.stepByStepGuide.prerequisites.length > 0 ? `### Предварительные требования:\n${record.analysis.stepByStepGuide.prerequisites.map((p) => `* ${p}`).join('\n')}\n` : ''}### Пошаговые действия:
 ${record.analysis.stepByStepGuide.steps.map((s) => `#### Шаг ${s.stepNumber}. ${s.title} ${s.timestamp ? `[${s.timestamp}]` : ''}\n* **Действие:** ${s.action}${s.screenDetails ? `\n* **Экран/Интерфейс:** ${s.screenDetails}` : ''}${s.notesOrWarnings ? `\n* **⚠️ Важно:** ${s.notesOrWarnings}` : ''}`).join('\n\n')}

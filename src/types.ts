@@ -65,7 +65,7 @@ export interface InstructionStep {
 
 export interface StepByStepGuide {
   title: string;
-  goal: string; // ЦКП (Ценный Конечный Продукт) / Результат
+  goal: string; // Итоговый результат / Цель инструкции
   prerequisites?: string[]; // Что нужно подготовить (доступы, ключи, файлы)
   steps: InstructionStep[];
   checklist?: string[]; // Чек-лист проверки готовности

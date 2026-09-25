@@ -99,7 +99,7 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
     const guide = record.analysis.stepByStepGuide;
     if (!guide) return;
     let md = `# ${guide.title || record.title}\n\n`;
-    md += `**🎯 ЦКП (Результат):** ${guide.goal}\n\n`;
+    md += `**🎯 Результат:** ${guide.goal}\n\n`;
     if (guide.prerequisites && guide.prerequisites.length > 0) {
       md += `### Предварительные требования:\n`;
       guide.prerequisites.forEach((p) => { md += `- ${p}\n`; });
@@ -189,8 +189,6 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
       return {
         name: '📘 Инструкция (SOP / Регламент)',
         icon: <BookOpen className="w-4 h-4 text-emerald-300" />,
-        badgeText: 'ЦКП',
-        badgeColor: 'bg-emerald-500/30 text-emerald-200',
         activeClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20',
       };
     }
@@ -198,8 +196,6 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
       return {
         name: '🎓 Учебный конспект & База знаний',
         icon: <GraduationCap className="w-4 h-4 text-indigo-300" />,
-        badgeText: 'ЦКП',
-        badgeColor: 'bg-indigo-500/30 text-indigo-200',
         activeClass: 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20',
       };
     }
@@ -207,8 +203,6 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
       return {
         name: '🎙 Медиа-пак & Цитатник',
         icon: <Mic className="w-4 h-4 text-purple-300" />,
-        badgeText: 'ЦКП',
-        badgeColor: 'bg-purple-500/30 text-purple-200',
         activeClass: 'bg-purple-600 text-white shadow-md shadow-purple-500/20',
       };
     }
@@ -225,8 +219,6 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
       return {
         name: '⚡ Экспресс-выжимка (TL;DR)',
         icon: <Zap className="w-4 h-4 text-amber-300" />,
-        badgeText: 'ЦКП',
-        badgeColor: 'bg-amber-500/30 text-amber-200',
         activeClass: 'bg-amber-600 text-white shadow-md shadow-amber-500/20',
       };
     }
@@ -241,7 +233,7 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
 📘 ПОШАГОВАЯ ИНСТРУКЦИЯ (SOP / РЕГЛАМЕНТ)
 --------------------------------------------------------------------------------
 НАЗВАНИЕ: ${guide.title}
-ЦКП (РЕЗУЛЬТАТ): ${guide.goal}
+РЕЗУЛЬТАТ: ${guide.goal}
 
 ${guide.prerequisites && guide.prerequisites.length > 0 ? `ПРЕДВАРИТЕЛЬНЫЕ ТРЕБОВАНИЯ:\n${guide.prerequisites.map((p) => `- ${p}`).join('\n')}\n\n` : ''}ПОШАГОВЫЕ ДЕЙСТВИЯ:
 ${guide.steps.map((s) => `ШАГ ${s.stepNumber}. ${s.title} ${s.timestamp ? `[${s.timestamp}]` : ''}\n  - Действие: ${s.action}${s.screenDetails ? `\n  - Экран: ${s.screenDetails}` : ''}${s.notesOrWarnings ? `\n  - Важно: ${s.notesOrWarnings}` : ''}`).join('\n\n')}
@@ -417,9 +409,11 @@ ${
           >
             {getSpecializedTabInfo()!.icon}
             <span>{getSpecializedTabInfo()!.name}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getSpecializedTabInfo()!.badgeColor}`}>
-              {getSpecializedTabInfo()!.badgeText}
-            </span>
+            {getSpecializedTabInfo()!.badgeText && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ml-1 ${getSpecializedTabInfo()!.badgeColor}`}>
+                {getSpecializedTabInfo()!.badgeText}
+              </span>
+            )}
           </button>
         )}
 
@@ -462,18 +456,18 @@ ${
         )}
       </div>
 
-      {/* TAB: SPECIALIZED VALUE RESULT (ЦКП РАСШИФРОВКИ) */}
+      {/* TAB: SPECIALIZED VALUE RESULT */}
       {activeTab === 'specialized' && (
         <div className="space-y-6">
           {/* 1. SCREENCAST / PRESENTATION -> SOP GUIDE */}
           {hasGuide && (
             <div className="space-y-6">
-              {/* Header Card: Title, Goal (ЦКП), Prerequisites & Copy Guide Button */}
+              {/* Header Card: Title, Goal, Prerequisites & Copy Guide Button */}
               <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 border border-emerald-500/40 rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
                   <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-semibold mb-2">
-                      <BookOpen className="w-3.5 h-3.5" /> ЦКП расшифровки: Готовая пошаговая инструкция (SOP)
+                      <BookOpen className="w-3.5 h-3.5" /> Готовая пошаговая инструкция (SOP / Регламент)
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                       {record.analysis.stepByStepGuide?.title || `Инструкция по настройке: ${record.title}`}
@@ -488,10 +482,10 @@ ${
                   </button>
                 </div>
 
-                {/* ЦКП / Цель инструкции */}
+                {/* Цель инструкции */}
                 <div className="bg-emerald-950/50 border border-emerald-500/30 rounded-xl p-4 mb-4">
                   <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block mb-1">
-                    🎯 Ценный конечный результат (ЦКП):
+                    🎯 Цель и результат:
                   </span>
                   <p className="text-sm font-medium text-emerald-100 leading-relaxed">
                     {record.analysis.stepByStepGuide?.goal || 'Пошаговый алгоритм действий для точного повторения настроек из видеоматериала.'}
@@ -627,7 +621,7 @@ ${
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
                   <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-semibold mb-2">
-                      <GraduationCap className="w-3.5 h-3.5" /> ЦКП расшифровки: Учебный Конспект &amp; База Знаний
+                      <GraduationCap className="w-3.5 h-3.5" /> Учебный Конспект &amp; База Знаний
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                       {record.analysis.lectureStudyGuide.subject || `Конспект вебинара: ${record.title}`}
@@ -802,7 +796,7 @@ ${
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
                   <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-semibold mb-2">
-                      <Mic className="w-3.5 h-3.5" /> ЦКП расшифровки: Медиа-пак для соцсетей &amp; Блога
+                      <Mic className="w-3.5 h-3.5" /> Медиа-пак для соцсетей &amp; Блога
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                       {record.title}
@@ -927,7 +921,7 @@ ${
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
                   <div>
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20 text-xs font-semibold mb-2">
-                      <PhoneCall className="w-3.5 h-3.5" /> ЦКП: Разбор звонка / CustDev (Enterprise Анализ)
+                      <PhoneCall className="w-3.5 h-3.5" /> Разбор звонка / CustDev (Enterprise Анализ)
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                       {record.businessNiche ? `Ниша: ${record.businessNiche} • ` : ''}{record.title}
@@ -1059,7 +1053,7 @@ ${
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/40 border border-amber-500/40 rounded-2xl p-6 sm:p-8 shadow-xl">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-semibold mb-3">
-                  <Zap className="w-3.5 h-3.5" /> ЦКП расшифровки: Экспресс-выжимка (TL;DR)
+                  <Zap className="w-3.5 h-3.5" /> Экспресс-выжимка (TL;DR)
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-4">
                   Вердикт за 30 секунд: {record.title}

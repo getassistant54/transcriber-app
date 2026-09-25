@@ -34,7 +34,7 @@ export function generateGoogleDocHtml(record: TranscriptionRecord): string {
   ${record.analysis.stepByStepGuide ? `
   <h2>📘 Пошаговая инструкция / Регламент (SOP)</h2>
   <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 14px 18px; border-radius: 6px; margin: 16px 0;">
-    <p style="margin: 0 0 6px 0; color: #065f46; font-size: 14px;"><strong>Цель (ЦКП):</strong> ${record.analysis.stepByStepGuide.goal}</p>
+    <p style="margin: 0 0 6px 0; color: #065f46; font-size: 14px;"><strong>Цель и результат:</strong> ${record.analysis.stepByStepGuide.goal}</p>
     ${record.analysis.stepByStepGuide.prerequisites && record.analysis.stepByStepGuide.prerequisites.length > 0 ? `
     <p style="margin: 6px 0 2px 0; font-size: 12px; color: #047857;"><strong>Предварительные требования / Доступы:</strong></p>
     <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 12px; color: #065f46;">
