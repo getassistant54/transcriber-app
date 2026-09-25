@@ -23,6 +23,8 @@ import {
   Cloud,
   FileAudio,
   CheckCircle2,
+  BookOpen,
+  ListChecks,
 } from 'lucide-react';
 
 interface TranscriptionViewProps {
@@ -37,9 +39,13 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
   onOpenGoogleDocsModal,
   currentUser,
 }) => {
-  const [activeTab, setActiveTab] = useState<'analytics' | 'transcript' | 'tokens'>('analytics');
+  const [activeTab, setActiveTab] = useState<'instructions' | 'analytics' | 'transcript' | 'tokens'>(
+    record.analysis.stepByStepGuide || record.preset === 'screencast' ? 'instructions' : 'analytics'
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
+  const [copiedGuide, setCopiedGuide] = useState(false);
+  const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
   const [downloadedTxt, setDownloadedTxt] = useState(false);
   const [currentTimeSeconds, setCurrentTimeSeconds] = useState(0);
   const [transcriptViewMode, setTranscriptViewMode] = useState<'segments' | 'verbatim'>('segments');
@@ -59,8 +65,55 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
     }
   };
 
+  const handleJumpToTime = (timeStr: string) => {
+    const parts = timeStr.split(':').map(Number);
+    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      setCurrentTimeSeconds(parts[0] * 60 + parts[1]);
+    }
+  };
+
+  const handleCopyGuide = () => {
+    const guide = record.analysis.stepByStepGuide;
+    if (!guide) return;
+    let md = `# ${guide.title || record.title}\n\n`;
+    md += `**🎯 ЦКП (Результат):** ${guide.goal}\n\n`;
+    if (guide.prerequisites && guide.prerequisites.length > 0) {
+      md += `### Предварительные требования:\n`;
+      guide.prerequisites.forEach((p) => { md += `- ${p}\n`; });
+      md += `\n`;
+    }
+    md += `### Пошаговые действия:\n`;
+    guide.steps.forEach((s) => {
+      md += `#### Шаг ${s.stepNumber}. ${s.title} ${s.timestamp ? `[${s.timestamp}]` : ''}\n`;
+      md += `- **Действие:** ${s.action}\n`;
+      if (s.screenDetails) md += `- **Интерфейс на экране:** ${s.screenDetails}\n`;
+      if (s.notesOrWarnings) md += `- **⚠️ Внимание:** ${s.notesOrWarnings}\n`;
+      md += `\n`;
+    });
+    if (guide.checklist && guide.checklist.length > 0) {
+      md += `### Чек-лист проверки результата:\n`;
+      guide.checklist.forEach((c) => { md += `- [ ] ${c}\n`; });
+    }
+    navigator.clipboard.writeText(md);
+    setCopiedGuide(true);
+    setTimeout(() => setCopiedGuide(false), 2500);
+  };
+
   const generateFullTextReport = () => {
     const displayLanguage = (!record.language || record.language.includes('?')) ? 'Русский' : record.language;
+    const guide = record.analysis.stepByStepGuide;
+    const guideSection = guide ? `
+================================================================================
+📘 ПОШАГОВАЯ ИНСТРУКЦИЯ (SOP / РЕГЛАМЕНТ)
+--------------------------------------------------------------------------------
+НАЗВАНИЕ: ${guide.title}
+ЦКП (РЕЗУЛЬТАТ): ${guide.goal}
+
+${guide.prerequisites && guide.prerequisites.length > 0 ? `ПРЕДВАРИТЕЛЬНЫЕ ТРЕБОВАНИЯ:\n${guide.prerequisites.map((p) => `- ${p}`).join('\n')}\n\n` : ''}ПОШАГОВЫЕ ДЕЙСТВИЯ:
+${guide.steps.map((s) => `ШАГ ${s.stepNumber}. ${s.title} ${s.timestamp ? `[${s.timestamp}]` : ''}\n  - Действие: ${s.action}${s.screenDetails ? `\n  - Экран: ${s.screenDetails}` : ''}${s.notesOrWarnings ? `\n  - Важно: ${s.notesOrWarnings}` : ''}`).join('\n\n')}
+
+${guide.checklist && guide.checklist.length > 0 ? `ЧЕК-ЛИСТ ПРОВЕРКИ:\n${guide.checklist.map((c) => `[ ] ${c}`).join('\n')}\n` : ''}` : '';
+
     return `================================================================================
 НАЗВАНИЕ: ${record.title}
 ИСТОЧНИК: ${record.sourceUrl} (${record.platform.toUpperCase()})
@@ -68,7 +121,7 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
 ДЛИТЕЛЬНОСТЬ: ~${Math.round(record.durationSeconds / 60)} мин (${record.durationSeconds} сек)
 ЯЗЫК: ${displayLanguage}
 ================================================================================
-
+${guideSection}
 1. КРАТКОЕ СОДЕРЖАНИЕ (САММАРИ)
 --------------------------------------------------------------------------------
 ${record.analysis.summary}
@@ -219,6 +272,23 @@ ${
 
       {/* View Mode Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+        {(record.analysis.stepByStepGuide || record.preset === 'screencast') && (
+          <button
+            onClick={() => setActiveTab('instructions')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all ${
+              activeTab === 'instructions'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+                : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 text-emerald-300" />
+            <span>📘 Инструкция (SOP / Регламент)</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-200 font-bold uppercase ml-1">
+              ЦКП
+            </span>
+          </button>
+        )}
+
         <button
           onClick={() => setActiveTab('analytics')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all ${
@@ -257,6 +327,160 @@ ${
           </button>
         )}
       </div>
+
+      {/* TAB: STEP-BY-STEP INSTRUCTION (SOP) */}
+      {activeTab === 'instructions' && (
+        <div className="space-y-6">
+          {/* Header Card: Title, Goal (ЦКП), Prerequisites & Copy Guide Button */}
+          <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 border border-emerald-500/40 rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-semibold mb-2">
+                  <BookOpen className="w-3.5 h-3.5" /> ЦКП расшифровки: Готовая пошаговая инструкция (SOP)
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                  {record.analysis.stepByStepGuide?.title || `Инструкция по настройке: ${record.title}`}
+                </h2>
+              </div>
+              <button
+                onClick={handleCopyGuide}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 flex items-center gap-2 transition active:scale-95 shrink-0"
+              >
+                {copiedGuide ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedGuide ? 'Инструкция скопирована!' : 'Скопировать регламент (Markdown)'}</span>
+              </button>
+            </div>
+
+            {/* ЦКП / Цель инструкции */}
+            <div className="bg-emerald-950/50 border border-emerald-500/30 rounded-xl p-4 mb-4">
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider block mb-1">
+                🎯 Ценный конечный результат (ЦКП):
+              </span>
+              <p className="text-sm font-medium text-emerald-100 leading-relaxed">
+                {record.analysis.stepByStepGuide?.goal || 'Пошаговый алгоритм действий для точного повторения настроек из видеоматериала.'}
+              </p>
+            </div>
+
+            {/* Prerequisites */}
+            {record.analysis.stepByStepGuide?.prerequisites && record.analysis.stepByStepGuide.prerequisites.length > 0 && (
+              <div>
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+                  Перед началом работы подготовьте:
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {record.analysis.stepByStepGuide.prerequisites.map((p, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-300 text-xs flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Steps List */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <ListChecks className="w-5 h-5 text-emerald-400" />
+                <span>Пошаговые действия ({record.analysis.stepByStepGuide?.steps?.length || 0} шагов)</span>
+              </h3>
+              <span className="text-xs text-slate-400">
+                Нажимайте на таймкоды для перехода к моменту видео
+              </span>
+            </div>
+
+            {record.analysis.stepByStepGuide?.steps?.map((step, idx) => (
+              <div
+                key={idx}
+                className="bg-slate-900/90 border border-slate-800 hover:border-emerald-500/40 rounded-2xl p-5 sm:p-6 shadow-md transition-all space-y-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center text-xs font-bold">
+                      {step.stepNumber || idx + 1}
+                    </span>
+                    <h4 className="text-sm sm:text-base font-bold text-white">
+                      {step.title}
+                    </h4>
+                  </div>
+                  {step.timestamp && (
+                    <button
+                      onClick={() => handleJumpToTime(step.timestamp!)}
+                      className="px-2.5 py-1 rounded-md bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-mono font-medium flex items-center gap-1 transition"
+                      title="Перейти к таймкоду в видео"
+                    >
+                      <Play className="w-3 h-3 fill-current" />
+                      [{step.timestamp}]
+                    </button>
+                  )}
+                </div>
+
+                {/* What to do */}
+                <div className="text-sm text-slate-200 leading-relaxed">
+                  <strong className="text-emerald-400 font-semibold">Действие: </strong>
+                  {step.action}
+                </div>
+
+                {/* Screen details */}
+                {step.screenDetails && (
+                  <div className="text-xs text-slate-400 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 flex items-start gap-2">
+                    <span className="text-slate-500 font-semibold shrink-0">🖥️ Экран:</span>
+                    <span>{step.screenDetails}</span>
+                  </div>
+                )}
+
+                {/* Warnings / Notes */}
+                {step.notesOrWarnings && (
+                  <div className="text-xs text-amber-300 bg-amber-950/20 p-3 rounded-xl border border-amber-900/40 flex items-start gap-2">
+                    <span className="shrink-0">⚠️</span>
+                    <span><strong>Важно: </strong>{step.notesOrWarnings}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Interactive Checklist */}
+          {record.analysis.stepByStepGuide?.checklist && record.analysis.stepByStepGuide.checklist.length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md">
+              <h3 className="text-base font-bold text-white flex items-center gap-2 mb-4">
+                <CheckSquare className="w-5 h-5 text-emerald-400" />
+                <span>Чек-лист проверки результата (самоконтроль)</span>
+              </h3>
+              <div className="space-y-2.5">
+                {record.analysis.stepByStepGuide.checklist.map((item, idx) => {
+                  const isChecked = !!checkedItems[idx];
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setCheckedItems((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                      className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition select-none ${
+                        isChecked
+                          ? 'bg-emerald-950/30 border-emerald-500/50 text-slate-200'
+                          : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition ${
+                        isChecked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600'
+                      }`}>
+                        {isChecked && <Check className="w-3.5 h-3.5" />}
+                      </div>
+                      <span className={`text-sm ${isChecked ? 'line-through text-slate-400' : 'text-slate-200'}`}>
+                        {item}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* TAB 1: AI ANALYTICS & ACTION ITEMS */}
       {activeTab === 'analytics' && (

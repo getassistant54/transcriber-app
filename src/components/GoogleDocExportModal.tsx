@@ -205,6 +205,43 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
       <p style="font-family: Arial, Helvetica, sans-serif; margin: 0; line-height: 1.6;">${record.analysis.summary.replace(/\n/g, '<br>')}</p>
     </div>
 
+    ${record.analysis.stepByStepGuide ? `
+    <h2 style="font-family: Arial, Helvetica, sans-serif; color: #047857; margin-top: 24px; border-bottom: 2px solid #10b981; padding-bottom: 4px; font-size: 14pt;">
+      📘 Пошаговая инструкция / Регламент (SOP)
+    </h2>
+    <div style="font-family: Arial, Helvetica, sans-serif; background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 14px; border-radius: 4px; margin: 14px 0;">
+      <p style="margin: 0 0 6px 0; color: #065f46; font-size: 11pt;"><b>🎯 Цель (ЦКП):</b> ${record.analysis.stepByStepGuide.goal}</p>
+      ${record.analysis.stepByStepGuide.prerequisites && record.analysis.stepByStepGuide.prerequisites.length > 0 ? `
+      <p style="margin: 6px 0 2px 0; font-size: 10pt; color: #047857;"><b>Предварительные требования / Доступы:</b></p>
+      <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 10pt; color: #065f46;">
+        ${record.analysis.stepByStepGuide.prerequisites.map(p => `<li>${p}</li>`).join('')}
+      </ul>
+      ` : ''}
+    </div>
+
+    <div style="font-family: Arial, Helvetica, sans-serif; margin: 16px 0;">
+      ${record.analysis.stepByStepGuide.steps.map(s => `
+      <div style="margin-bottom: 10px; padding: 10px 14px; background: #ffffff; border: 1px solid #d1fae5; border-radius: 4px;">
+        <p style="margin: 0 0 4px 0; font-size: 11pt; font-weight: bold; color: #065f46;">
+          Шаг ${s.stepNumber}. ${s.title} ${s.timestamp ? `<span style="color: #059669; font-weight: normal;">[${s.timestamp}]</span>` : ''}
+        </p>
+        <p style="margin: 0 0 4px 0; font-size: 10.5pt; line-height: 1.5;"><b>Действие:</b> ${s.action}</p>
+        ${s.screenDetails ? `<p style="margin: 0 0 4px 0; color: #4b5563; font-size: 9.5pt;"><i>Экран: ${s.screenDetails}</i></p>` : ''}
+        ${s.notesOrWarnings ? `<p style="margin: 2px 0 0 0; color: #b45309; font-size: 9.5pt;"><b>⚠️ Внимание:</b> ${s.notesOrWarnings}</p>` : ''}
+      </div>
+      `).join('')}
+    </div>
+
+    ${record.analysis.stepByStepGuide.checklist && record.analysis.stepByStepGuide.checklist.length > 0 ? `
+    <div style="background-color: #f8fafc; border: 1px dashed #94a3b8; padding: 10px 14px; border-radius: 4px; margin: 14px 0; font-size: 10pt;">
+      <p style="margin: 0 0 4px 0; font-weight: bold; color: #334155;">✅ Чек-лист проверки результата:</p>
+      <ul style="margin: 0; padding-left: 20px; color: #475569;">
+        ${record.analysis.stepByStepGuide.checklist.map(c => `<li>☑️ ${c}</li>`).join('')}
+      </ul>
+    </div>
+    ` : ''}
+    ` : ''}
+
     <h2 style="font-family: Arial, Helvetica, sans-serif; color: #1d4ed8; margin-top: 24px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; font-size: 13pt;">
       Главные выводы
     </h2>
@@ -272,7 +309,20 @@ export const GoogleDocExportModal: React.FC<GoogleDocExportModalProps> = ({
 
 ## Краткое содержание (Саммари)
 ${record.analysis.summary}
+${
+  record.analysis.stepByStepGuide
+    ? `
+---
 
+## 📘 Пошаговая инструкция / Регламент (SOP)
+**🎯 Цель (ЦКП):** ${record.analysis.stepByStepGuide.goal}
+
+${record.analysis.stepByStepGuide.prerequisites && record.analysis.stepByStepGuide.prerequisites.length > 0 ? `### Предварительные требования:\n${record.analysis.stepByStepGuide.prerequisites.map((p) => `* ${p}`).join('\n')}\n` : ''}### Пошаговые действия:
+${record.analysis.stepByStepGuide.steps.map((s) => `#### Шаг ${s.stepNumber}. ${s.title} ${s.timestamp ? `[${s.timestamp}]` : ''}\n* **Действие:** ${s.action}${s.screenDetails ? `\n* **Экран/Интерфейс:** ${s.screenDetails}` : ''}${s.notesOrWarnings ? `\n* **⚠️ Важно:** ${s.notesOrWarnings}` : ''}`).join('\n\n')}
+
+${record.analysis.stepByStepGuide.checklist && record.analysis.stepByStepGuide.checklist.length > 0 ? `### Чек-лист проверки результата:\n${record.analysis.stepByStepGuide.checklist.map((c) => `- [ ] ${c}`).join('\n')}\n` : ''}`
+    : ''
+}
 ---
 
 ## Главные выводы

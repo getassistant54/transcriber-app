@@ -595,7 +595,7 @@ app.post('/api/transcribe', async (req, res) => {
       meeting: 'Акцентируй внимание на решениях, задачах (Action Items), назначениях ответственных и сроках. Отметь спорные моменты.',
       lecture: 'Сделай упор на ключевые понятия, определения, тезисы спикера и выводы. Разбей на логические главы.',
       podcast: 'Выдели самые яркие цитаты, интересные мысли, мнения участников и хронологию ключевых тем.',
-      screencast: 'Выполни комплексный аудиовизуальный анализ скринкаста или презентации. Внимательно проанализируй как речь, так и видеоряд (слайды, текст на экране, открытые программы, меню, настройки и действия спикера). В отчете подробно выдели структуру показанного материала, пошаговые инструкции и ключевые тезисы. Если в видео мало речи или спикер демонстрирует интерфейс без слов, в verbatimTranscript и segments подробно опиши последовательность действий на экране с таймкодами [MM:SS] (какие разделы открыты, какие параметры заданы, какой текст вводится).',
+      screencast: 'Выполни глубокий анализ скринкаста, демонстрации экрана или обучающего видео. ВНИМАНИЕ: Главным Ценным Конечным Продуктом (ЦКП) этого анализа является ПОШАГОВАЯ ИНСТРУКЦИЯ (SOP / Регламент), по которой любой человек сможет в точности повторить показанные настройки! Внимательно проанализируй как речь, так и видеоряд (слайды, текст на экране, открытые программы, меню, настройки, поля ввода и действия спикера). Обязательно заполни объект "stepByStepGuide" со всеми шагами, действиями, экранными подсказками, предостережениями и итоговым чек-листом проверки.',
       quick_summary: 'Сделай максимально краткую выжимку (3-5 главных мыслей), список решенных вопросов и 3 ключевых вывода.',
       custom: adminSettings.customSystemPrompt,
     };
@@ -636,7 +636,7 @@ ${realTranscriptText.slice(0, 45000)}
 Формат входных данных или контекста:
 ${inputContextDescription}
 
-ВАЖНО: Все поля ответа (включая "verbatimTranscript", "segments", "summary", "chapters", "actionItems") ОБЯЗАТЕЛЬНО должны быть на языке: ${language}! Если исходная стенограмма на другом языке — переведи её на ${language}.
+ВАЖНО: Все поля ответа (включая "verbatimTranscript", "segments", "summary", "chapters", "actionItems", "stepByStepGuide") ОБЯЗАТЕЛЬНО должны быть на языке: ${language}! Если исходная стенограмма на другом языке — переведи её на ${language}.
 
 Верни ответ СТРОГО в формате JSON со следующими полями:
 {
@@ -658,7 +658,29 @@ ${inputContextDescription}
   "chapters": [
     { "timestamp": "00:00", "timeSeconds": 0, "title": "Название главы", "summary": "О чем эта глава" }
   ],
-  "sentimentAndTone": "Общая атмосфера и тон обсуждения"
+  "sentimentAndTone": "Общая атмосфера и тон обсуждения",
+  "stepByStepGuide": {
+    "title": "Название пошаговой инструкции / регламента (SOP)",
+    "goal": "ЦКП (Ценный Конечный Продукт) / Результат: что будет получено/настроено в итоге выполнения инструкции",
+    "prerequisites": [
+      "Необходимый доступ, сервис или файл 1",
+      "Необходимое требование 2"
+    ],
+    "steps": [
+      {
+        "stepNumber": 1,
+        "timestamp": "00:00",
+        "title": "Название шага",
+        "action": "Подробное действие: куда нажать, что выбрать, какие параметры ввести",
+        "screenDetails": "Что отображается на экране (название раздела, меню, кнопки, поля)",
+        "notesOrWarnings": "Важные нюансы, предостережения или частые ошибки (если есть)"
+      }
+    ],
+    "checklist": [
+      "Пункт проверки готовности результата 1",
+      "Пункт проверки 2"
+    ]
+  }
 }
 `;
 
@@ -889,6 +911,42 @@ ${inputContextDescription}
           { timestamp: '15:40', timeSeconds: 940, title: 'Финальные решения', summary: 'Подведение итогов и экспорт результатов.' },
         ],
         sentimentAndTone: 'Конструктивный, продуктивный, рабочий.',
+        stepByStepGuide: {
+          title: `Пошаговая инструкция по видеоматериалу "${linkInfo.title}"`,
+          goal: 'Пошаговое руководство (SOP) для повторения показанных действий и настроек',
+          prerequisites: [
+            'Учетная запись и доступ к настраиваемому сервису',
+            'Необходимые параметры и исходные данные'
+          ],
+          steps: [
+            {
+              stepNumber: 1,
+              timestamp: '00:15',
+              title: 'Вход в систему и переход в целевой раздел',
+              action: 'Авторизоваться в личном кабинете и перейти в главное рабочее меню',
+              screenDetails: 'Отображается главный экран сервиса, открыт список проектов'
+            },
+            {
+              stepNumber: 2,
+              timestamp: '02:30',
+              title: 'Конфигурация параметров и пошаговая настройка',
+              action: 'Заполнить обязательные поля, активировать тумблеры и применить изменения',
+              screenDetails: 'Панель настроек, поля ввода и кнопка подтверждения',
+              notesOrWarnings: 'Проверьте корректность введенных данных перед сохранением'
+            },
+            {
+              stepNumber: 3,
+              timestamp: '08:15',
+              title: 'Финальная проверка и запуск сценария',
+              action: 'Провести тестовый прогон и убедиться в успешном завершении',
+              screenDetails: 'Окно отладки со статусом выполнения сценария'
+            }
+          ],
+          checklist: [
+            'Все ключевые шаги выполнены последовательно',
+            'Тестовый прогон прошел без предупреждений и ошибок'
+          ]
+        },
       };
       inputTokens = 8500;
       outputTokens = 1900;
@@ -925,6 +983,7 @@ ${inputContextDescription}
       chapters: parsedResponse.chapters || [],
       mainTakeaways: parsedResponse.mainTakeaways || [],
       sentimentAndTone: parsedResponse.sentimentAndTone || 'Нейтральный',
+      stepByStepGuide: parsedResponse.stepByStepGuide || undefined,
     };
 
     const fullVerbatim = parsedResponse.verbatimTranscript || realTranscriptText || '';
@@ -1025,6 +1084,41 @@ app.post('/api/export/google-docs', (req, res) => {
   <div class="summary-box">
     <p>${record.analysis.summary}</p>
   </div>
+
+  ${record.analysis.stepByStepGuide ? `
+  <h2>📘 Пошаговая инструкция / Регламент (SOP)</h2>
+  <div style="background-color: #ecfdf5; border-left: 4px solid #10b981; padding: 14px 18px; border-radius: 6px; margin: 16px 0;">
+    <p style="margin: 0 0 6px 0; color: #065f46; font-size: 15px;"><strong>Цель (ЦКП):</strong> ${record.analysis.stepByStepGuide.goal}</p>
+    ${record.analysis.stepByStepGuide.prerequisites && record.analysis.stepByStepGuide.prerequisites.length > 0 ? `
+    <p style="margin: 6px 0 2px 0; font-size: 13px; color: #047857;"><strong>Предварительные требования / Доступы:</strong></p>
+    <ul style="margin: 4px 0 0 0; padding-left: 20px; font-size: 13px; color: #065f46;">
+      ${record.analysis.stepByStepGuide.prerequisites.map(p => `<li>${p}</li>`).join('')}
+    </ul>
+    ` : ''}
+  </div>
+
+  <div style="margin: 16px 0;">
+    ${record.analysis.stepByStepGuide.steps.map(s => `
+    <div style="margin-bottom: 12px; padding: 12px 16px; background: #ffffff; border: 1px solid #d1fae5; border-radius: 6px;">
+      <p style="margin: 0 0 6px 0; font-size: 14px; font-weight: bold; color: #065f46;">
+        Шаг ${s.stepNumber}. ${s.title} ${s.timestamp ? `<span style="color: #059669; font-weight: normal;">[${s.timestamp}]</span>` : ''}
+      </p>
+      <p style="margin: 0 0 4px 0; font-size: 13px; line-height: 1.5;"><strong>Действие:</strong> ${s.action}</p>
+      ${s.screenDetails ? `<p style="margin: 0 0 4px 0; color: #4b5563; font-size: 12px;"><em>Экран/Интерфейс: ${s.screenDetails}</em></p>` : ''}
+      ${s.notesOrWarnings ? `<p style="margin: 4px 0 0 0; color: #b45309; font-size: 12px;"><strong>⚠️ Нюанс / Предостережение:</strong> ${s.notesOrWarnings}</p>` : ''}
+    </div>
+    `).join('')}
+  </div>
+
+  ${record.analysis.stepByStepGuide.checklist && record.analysis.stepByStepGuide.checklist.length > 0 ? `
+  <div style="background-color: #f8fafc; border: 1px dashed #94a3b8; padding: 12px 16px; border-radius: 6px; margin: 16px 0;">
+    <p style="margin: 0 0 6px 0; font-weight: bold; color: #334155; font-size: 13px;">✅ Чек-лист проверки результата:</p>
+    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+      ${record.analysis.stepByStepGuide.checklist.map(c => `<li>☑️ ${c}</li>`).join('')}
+    </ul>
+  </div>
+  ` : ''}
+  ` : ''}
 
   <h2>💡 Ключевые выводы и идеи</h2>
   <ul>

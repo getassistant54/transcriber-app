@@ -54,6 +54,23 @@ export interface KeyInsight {
   quote?: string;
 }
 
+export interface InstructionStep {
+  stepNumber: number;
+  timestamp?: string; // e.g. "01:23"
+  title: string; // Краткое название шага
+  action: string; // Конкретное действие (куда нажать, что ввести)
+  screenDetails?: string; // Что отображается на экране (кнопки, разделы, меню)
+  notesOrWarnings?: string; // Важные предостережения и нюансы
+}
+
+export interface StepByStepGuide {
+  title: string;
+  goal: string; // ЦКП (Ценный Конечный Продукт) / Результат
+  prerequisites?: string[]; // Что нужно подготовить (доступы, ключи, файлы)
+  steps: InstructionStep[];
+  checklist?: string[]; // Чек-лист проверки готовности
+}
+
 export interface TokenCostBreakdown {
   modelUsed: string;
   inputTokens: number;
@@ -71,6 +88,7 @@ export interface AnalysisResult {
   chapters: KeyChapter[];
   mainTakeaways: string[];
   sentimentAndTone: string;
+  stepByStepGuide?: StepByStepGuide;
 }
 
 export interface TranscriptionRecord {
