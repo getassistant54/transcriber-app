@@ -50,10 +50,10 @@ export const PricingModal: React.FC<PricingModalProps> = ({
 
         <div className="text-center mb-8">
           <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold uppercase tracking-wider">
-            Прозрачные Тарифы &amp; Монетизация
+            Тарифы &amp; Подписки
           </span>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-2">
-            Тарифные Планы и Расчет Затрат Токенов
+            Тарифные Планы
           </h2>
           <p className="text-slate-400 text-xs sm:text-sm max-w-xl mx-auto mt-1">
             Выберите подходящий уровень доступа для себя или вашей команды.
@@ -114,42 +114,26 @@ export const PricingModal: React.FC<PricingModalProps> = ({
           })}
         </div>
 
-        {/* Token Cost Calculator for Transparency */}
-        <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 space-y-4">
+        {/* Value Guarantee & Comparison Box */}
+        <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-3">
           <div className="flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-amber-400" />
+            <Sparkles className="w-5 h-5 text-amber-400" />
             <h3 className="text-sm font-bold text-white">
-              Интерактивный Калькулятор Расхода Токенов ИИ
+              Почему автоматическая ИИ-расшифровка выгоднее:
             </h3>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">
-                Часов видео в месяц: <strong className="text-white font-mono">{calcHours} ч</strong>
-              </label>
-              <input
-                type="range"
-                min="1"
-                max="100"
-                value={calcHours}
-                onChange={(e) => setCalcHours(Number(e.target.value))}
-                className="w-full accent-amber-500 cursor-pointer"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-slate-300 pt-1">
+            <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+              <p className="font-bold text-white">⚡ Скорость 60 секунд</p>
+              <p className="text-slate-400">Вместо ожидания 1–2 рабочих дней от человека-расшифровщика.</p>
             </div>
-
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1">
-              <p className="text-slate-400">Примерный объем токенов:</p>
-              <p className="text-sm font-bold text-purple-300 font-mono">
-                {totalTokensEstimated.toLocaleString()} токенов
-              </p>
+            <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+              <p className="font-bold text-emerald-400">💰 Экономия от 10×</p>
+              <p className="text-slate-400">Ручная расшифровка стоит от 1 500 ₽ за час. В тарифе Pro — от 66 ₽ за час.</p>
             </div>
-
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1">
-              <p className="text-slate-400">Себестоимость API Gemini:</p>
-              <p className="text-sm font-bold text-emerald-400 font-mono">
-                ~{rawApiCostRub} ₽ (${rawApiCostUsd.toFixed(2)})
-              </p>
+            <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
+              <p className="font-bold text-blue-400">📋 Готовый результат</p>
+              <p className="text-slate-400">Не просто текст, а готовый регламент, протокол встреч и задачи в Google Docs.</p>
             </div>
           </div>
         </div>

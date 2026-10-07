@@ -91,31 +91,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </div>
 
-      {/* KPI Financial Cards */}
+      {/* KPI Financial & Business Metrics for Owner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Всего обработано</span>
-            <Clock className="w-4 h-4 text-blue-400" />
-          </div>
-          <p className="text-2xl font-extrabold text-white mt-2 font-mono">
-            {stats.totalDurationHours} ч
-          </p>
-          <p className="text-xs text-slate-500 mt-1">{stats.totalTranscriptions} видеозаписей</p>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Расход токенов ИИ</span>
-            <Coins className="w-4 h-4 text-purple-400" />
-          </div>
-          <p className="text-2xl font-extrabold text-purple-300 mt-2 font-mono">
-            {(stats.totalTokensUsed / 1000).toFixed(1)}k
-          </p>
-          <p className="text-xs text-slate-500 mt-1">Затраты API: ${stats.totalCostUsd.toFixed(3)}</p>
-        </div>
-
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Выручка Сервиса</span>
@@ -124,18 +102,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <p className="text-2xl font-extrabold text-emerald-400 mt-2 font-mono">
             {stats.totalRevenueRub.toLocaleString()} ₽
           </p>
-          <p className="text-xs text-slate-500 mt-1">Маржа токенов: {markupPercent}%</p>
+          <p className="text-xs text-slate-500 mt-1">Оплаты подписок и тарифов</p>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Пользователи &amp; Гости</span>
-            <Users className="w-4 h-4 text-amber-400" />
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Затраты на ИИ (API)</span>
+            <Coins className="w-4 h-4 text-purple-400" />
           </div>
-          <p className="text-2xl font-extrabold text-amber-300 mt-2 font-mono">
-            {stats.activeUsersCount}
+          <p className="text-2xl font-extrabold text-purple-300 mt-2 font-mono">
+            ~{Math.round(stats.totalCostUsd * usdRate).toLocaleString()} ₽
           </p>
-          <p className="text-xs text-slate-500 mt-1">{stats.guestSessionsCount} гостевых сессий сегодня</p>
+          <p className="text-xs text-slate-500 mt-1">(${stats.totalCostUsd.toFixed(3)} по курсу {usdRate} ₽)</p>
+        </div>
+
+        <div className="bg-slate-900 border border-emerald-900/50 bg-gradient-to-b from-slate-900 to-emerald-950/20 rounded-2xl p-5 shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Чистая Прибыль</span>
+            <DollarSign className="w-4 h-4 text-emerald-400" />
+          </div>
+          <p className="text-2xl font-extrabold text-white mt-2 font-mono">
+            {Math.max(0, stats.totalRevenueRub - Math.round(stats.totalCostUsd * usdRate)).toLocaleString()} ₽
+          </p>
+          <p className="text-xs text-emerald-400 mt-1 font-medium">Маржинальность ~{markupPercent}%</p>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Клиенты &amp; Объем</span>
+            <Users className="w-4 h-4 text-blue-400" />
+          </div>
+          <p className="text-2xl font-extrabold text-blue-300 mt-2 font-mono">
+            {stats.activeUsersCount} клиентов
+          </p>
+          <p className="text-xs text-slate-500 mt-1">{stats.totalDurationHours} ч ({stats.totalTranscriptions} записей)</p>
         </div>
 
       </div>

@@ -35,6 +35,7 @@ import {
   TrendingUp,
   Target,
   Send,
+  Video,
 } from 'lucide-react';
 
 interface TranscriptionViewProps {
@@ -49,15 +50,15 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
   onOpenGoogleDocsModal,
   currentUser,
 }) => {
-  const hasGuide = !!record.analysis.stepByStepGuide || record.preset === 'screencast';
-  const hasLecture = !!record.analysis.lectureStudyGuide || record.preset === 'lecture';
-  const hasPodcast = !!record.analysis.podcastMediaPack || record.preset === 'podcast';
-  const hasSalesCall = !!record.analysis.salesCallAnalysis || record.preset === 'sales_call';
-  const hasQuickSummary = !!record.analysis.quickSummaryCard || record.preset === 'quick_summary';
+  const hasGuide = !!record.analysis?.stepByStepGuide;
+  const hasLecture = !!record.analysis?.lectureStudyGuide;
+  const hasPodcast = !!record.analysis?.podcastMediaPack;
+  const hasSalesCall = !!record.analysis?.salesCallAnalysis;
+  const hasQuickSummary = !!record.analysis?.quickSummaryCard;
 
   const hasSpecialized = hasGuide || hasLecture || hasPodcast || hasSalesCall || hasQuickSummary;
 
-  const [activeTab, setActiveTab] = useState<'specialized' | 'analytics' | 'transcript' | 'tokens'>(
+  const [activeTab, setActiveTab] = useState<'specialized' | 'analytics' | 'transcript'>(
     hasSpecialized ? 'specialized' : 'analytics'
   );
   const [searchTerm, setSearchTerm] = useState('');
@@ -199,6 +200,55 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
   };
 
   const getSpecializedTabInfo = () => {
+    // 1. Check matching preset first
+    if (record.preset === 'sales_call' && hasSalesCall) {
+      return {
+        name: '💼 Разбор звонка / CustDev',
+        icon: <PhoneCall className="w-4 h-4 text-rose-300" />,
+        badgeText: 'Enterprise 👑',
+        badgeColor: 'bg-rose-500/30 text-rose-200',
+        activeClass: 'bg-rose-600 text-white shadow-md shadow-rose-500/20',
+      };
+    }
+    if (record.preset === 'screencast' && hasGuide) {
+      return {
+        name: '📘 Инструкция (SOP / Регламент)',
+        icon: <BookOpen className="w-4 h-4 text-emerald-300" />,
+        activeClass: 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20',
+      };
+    }
+    if (record.preset === 'lecture' && hasLecture) {
+      return {
+        name: '🎓 Учебный конспект & База знаний',
+        icon: <GraduationCap className="w-4 h-4 text-indigo-300" />,
+        activeClass: 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20',
+      };
+    }
+    if (record.preset === 'podcast' && hasPodcast) {
+      return {
+        name: '🎙 Медиа-пак & Цитатник',
+        icon: <Mic className="w-4 h-4 text-purple-300" />,
+        activeClass: 'bg-purple-600 text-white shadow-md shadow-purple-500/20',
+      };
+    }
+    if (record.preset === 'quick_summary' && hasQuickSummary) {
+      return {
+        name: '⚡ Экспресс-выжимка (TL;DR)',
+        icon: <Zap className="w-4 h-4 text-amber-300" />,
+        activeClass: 'bg-amber-600 text-white shadow-md shadow-amber-500/20',
+      };
+    }
+
+    // 2. Fallbacks if data exists
+    if (hasSalesCall) {
+      return {
+        name: '💼 Разбор звонка / CustDev',
+        icon: <PhoneCall className="w-4 h-4 text-rose-300" />,
+        badgeText: 'Enterprise 👑',
+        badgeColor: 'bg-rose-500/30 text-rose-200',
+        activeClass: 'bg-rose-600 text-white shadow-md shadow-rose-500/20',
+      };
+    }
     if (hasGuide) {
       return {
         name: '📘 Инструкция (SOP / Регламент)',
@@ -218,15 +268,6 @@ export const TranscriptionView: React.FC<TranscriptionViewProps> = ({
         name: '🎙 Медиа-пак & Цитатник',
         icon: <Mic className="w-4 h-4 text-purple-300" />,
         activeClass: 'bg-purple-600 text-white shadow-md shadow-purple-500/20',
-      };
-    }
-    if (hasSalesCall) {
-      return {
-        name: '💼 Разбор звонка / CustDev',
-        icon: <PhoneCall className="w-4 h-4 text-rose-300" />,
-        badgeText: 'Enterprise 👑',
-        badgeColor: 'bg-rose-500/30 text-rose-200',
-        activeClass: 'bg-rose-600 text-white shadow-md shadow-rose-500/20',
       };
     }
     if (hasQuickSummary) {
@@ -311,9 +352,9 @@ ${
     setTimeout(() => setDownloadedTxt(false), 3500);
   };
 
-  const filteredTranscriptSegments = record.segments.filter((s) =>
-    s.text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.speaker.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredTranscriptSegments = (record.segments || []).filter((s) =>
+    (s.text || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.speaker || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -452,29 +493,15 @@ ${
           }`}
         >
           <FileText className="w-4 h-4 text-blue-300" />
-          <span>Чистая Стенограмма ({formatPhrasesCount(record.segments.length || 1)})</span>
+          <span>Чистая Стенограмма ({formatPhrasesCount(record.segments?.length || 1)})</span>
         </button>
-
-        {currentUser?.role === 'admin' && (
-          <button
-            onClick={() => setActiveTab('tokens')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-xs sm:text-sm transition-all ${
-              activeTab === 'tokens'
-                ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
-                : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800'
-            }`}
-          >
-            <Coins className="w-4 h-4 text-purple-300" />
-            <span>Токены &amp; Стоимость ({record.tokenCost.estimatedCostRub} ₽)</span>
-          </button>
-        )}
       </div>
 
       {/* TAB: SPECIALIZED VALUE RESULT */}
       {activeTab === 'specialized' && (
         <div className="space-y-6">
           {/* 1. SCREENCAST / PRESENTATION -> SOP GUIDE */}
-          {hasGuide && (
+          {hasGuide && record.analysis?.stepByStepGuide && (
             <div className="space-y-6">
               {/* Header Card: Title, Goal, Prerequisites & Copy Guide Button */}
               <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 border border-emerald-500/40 rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
@@ -1335,59 +1362,30 @@ ${
         </div>
       )}
 
-      {/* TAB 3: TOKEN COSTS & FINANCIAL METRICS */}
-      {activeTab === 'tokens' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2 mb-1">
-              <Coins className="w-5 h-5 text-purple-400" />
-              <span>Прозрачный Расчет ИИ-Токенов &amp; Себестоимости</span>
-            </h3>
-            <p className="text-xs text-slate-400">
-              Каждый запрос к Gemini AI подсчитывается с высокой точностью. Вот полная финансовая статистика по этой видеозаписи.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-              <p className="text-xs text-slate-400 uppercase font-semibold">Модель ИИ</p>
-              <p className="text-lg font-bold text-purple-300 mt-1 font-mono">{record.tokenCost.modelUsed}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Google GenAI SDK</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-              <p className="text-xs text-slate-400 uppercase font-semibold">Токены Входа / Выхода</p>
-              <p className="text-lg font-bold text-blue-300 mt-1 font-mono">
-                {record.tokenCost.inputTokens.toLocaleString()} / {record.tokenCost.outputTokens.toLocaleString()}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Всего: {record.tokenCost.totalTokens.toLocaleString()} токенов</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-              <p className="text-xs text-slate-400 uppercase font-semibold">Себестоимость API ($)</p>
-              <p className="text-lg font-bold text-emerald-400 mt-1 font-mono">
-                ${record.tokenCost.estimatedCostUsd.toFixed(4)}
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">По тарифу Google Cloud</p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-              <p className="text-xs text-slate-400 uppercase font-semibold">Стоимость в Рублях (₽)</p>
-              <p className="text-lg font-bold text-amber-300 mt-1 font-mono">
-                ~{record.tokenCost.estimatedCostRub} ₽
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">С учетом наценки сервиса</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-900/30 text-xs text-slate-300 space-y-2">
-            <h4 className="font-bold text-purple-300">💡 Справка для Главного Администратора:</h4>
-            <p>
-              Средняя стоимость расшифровки 1 часа видео на модели Gemini 2.5 Flash составляет от <strong className="text-white">0.15 до 0.40 ₽</strong> за токены. Это позволяет владельцу сервиса продавать подписки с маржинальностью более <strong className="text-emerald-400">900%</strong>!
-            </p>
-          </div>
+      {/* Test Group Feedback Helper */}
+      <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>Тестируете сервис? Нашли неточность в распознавании или формулировках?</span>
         </div>
-      )}
+        <div className="flex items-center gap-3">
+          <a
+            href="https://t.me/getassistant54"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sky-400 hover:text-sky-300 underline font-medium"
+          >
+            Telegram @getassistant54
+          </a>
+          <span>•</span>
+          <a
+            href="mailto:getassist@yandex.ru?subject=%D0%9E%D1%82%D0%B7%D1%8B%D0%B2%20%D0%BF%D0%BE%20%D1%80%D0%B0%D1%81%D1%88%D0%B8%D1%84%D1%80%D0%BE%D0%B2%D0%BA%D0%B5"
+            className="text-amber-400 hover:text-amber-300 underline font-medium"
+          >
+            getassist@yandex.ru
+          </a>
+        </div>
+      </div>
 
     </div>
   );

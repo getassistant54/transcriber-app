@@ -35,6 +35,7 @@ interface TranscribeFormProps {
     fileMimeType?: string;
     businessNiche?: string;
     customAiPrompt?: string;
+    _hp_security_check?: string;
   }) => void;
   isLoading: boolean;
   isGuest: boolean;
@@ -66,6 +67,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
   const [fileReading, setFileReading] = useState<boolean>(false);
   const [businessNiche, setBusinessNiche] = useState('');
   const [customAiPrompt, setCustomAiPrompt] = useState('');
+  const [honeypot, setHoneypot] = useState('');
   const [zoomPasscode, setZoomPasscode] = useState('');
   const [zoomCheckLoading, setZoomCheckLoading] = useState(false);
   const [zoomInfo, setZoomInfo] = useState<{
@@ -165,6 +167,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       fileMimeType: inputMode === 'file' ? (uploadedFileMimeType || undefined) : undefined,
       businessNiche: businessNiche.trim() || undefined,
       customAiPrompt: customAiPrompt.trim() || undefined,
+      _hp_security_check: honeypot || undefined,
     });
   };
 
@@ -208,13 +211,14 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       const sizeMb = Math.round((file.size / (1024 * 1024)) * 10) / 10;
-      if (sizeMb > 250) {
-        alert(`Файл "${file.name}" слишком большой (${sizeMb} МБ). Максимальный размер файла для веб-интерфейса — 250 МБ. Пожалуйста, сожмите видео или извлеките аудиодорожку.`);
-        return;
-      }
-
       const ext = file.name.split('.').pop()?.toLowerCase() || '';
       const isVideo = file.type.startsWith('video/') || ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(ext);
+
+      const maxLimitMb = isVideo ? 150 : 100;
+      if (sizeMb > maxLimitMb) {
+        alert(`Файл "${file.name}" имеет размер ${sizeMb} МБ.\nМаксимальный рекомендуемый лимит для веб-интерфейса: ${maxLimitMb} МБ.\n\nПодсказка: Для больших записей (Zoom / Вебинары от 1 часа) рекомендуем экспортировать только аудиодорожку в MP3 (она весит всего ~30-50 МБ) или сжать видео.`);
+        return;
+      }
 
       let mime = file.type;
       if (!mime || mime === '') {
@@ -263,7 +267,7 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <div className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" /> ИИ-Обработка через Gemini 3.6 Flash
+            <Sparkles className="w-3.5 h-3.5" /> ИИ-Обработка через Gemini 3.5 Flash
           </div>
           {isGuest && (
             <div className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-medium flex items-center gap-1.5">
@@ -282,6 +286,17 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
 
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Anti-Bot Security Honeypot (Invisible to humans, traps automated scrapers) */}
+        <input
+          type="text"
+          name="_hp_security_check"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          tabIndex={-1}
+          autoComplete="off"
+          style={{ display: 'none', position: 'absolute', left: '-9999px', opacity: 0 }}
+          aria-hidden="true"
+        />
         
         {/* Input Mode Selector & Field */}
         <div className="space-y-3">
@@ -486,8 +501,8 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
                 )}
               </p>
               <div className="mt-1 flex items-center justify-center gap-3">
-                <p className="text-xs text-slate-500">
-                  Поддерживаются видеозаписи со скринкастами и аудиофайлы до 250 МБ
+                <p className="text-xs text-slate-400">
+                  Рекомендуемый размер: аудио до 80–100 МБ (~2 часа речи), видео до 150 МБ (~30 минут)
                 </p>
                 {uploadedFileName && (
                   <button
@@ -618,9 +633,9 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
         {/* Submit Button & Guest Warning */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-800/80">
           <div className="text-xs text-slate-400 flex items-center gap-2">
-            <Sliders className="w-4 h-4 text-slate-500" />
+            <Sparkles className="w-4 h-4 text-amber-400" />
             <span>
-              Модель Gemini 3.6 Flash • Расчет стоимости токенов включен
+              Нейросетевая обработка Gemini AI • Высокая точность речи и таймкодов
             </span>
           </div>
 
@@ -637,11 +652,21 @@ export const TranscribeForm: React.FC<TranscribeFormProps> = ({
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 <span>
-                  {inputMode === 'file' && (uploadedFileMimeType?.includes('video') || preset === 'screencast')
-                    ? 'ИИ-Зрение анализирует видеоряд и речь (1-2 мин)...'
-                    : inputMode === 'url'
-                      ? 'ИИ извлекает и анализирует стенограмму вебинара (15-30 сек)...'
-                      : 'ИИ обрабатывает запись (извлечение & анализ)...'}
+                  {preset === 'screencast'
+                    ? 'ИИ-Зрение анализирует экран, слайды и действия (1-2 мин)...'
+                    : preset === 'meeting'
+                      ? 'ИИ расшифровывает встречу и формирует протокол задач (1-2 мин)...'
+                      : preset === 'sales_call'
+                        ? 'ИИ анализирует звонок, боли клиента и договоренности (1-2 мин)...'
+                        : preset === 'lecture'
+                          ? 'ИИ формирует учебный конспект и глоссарий (1-2 мин)...'
+                          : preset === 'podcast'
+                            ? 'ИИ расшифровывает подкаст и готовит медиа-пак (1-2 мин)...'
+                            : preset === 'quick_summary'
+                              ? 'ИИ готовит экспресс-выжимку за 1 минуту...'
+                              : inputMode === 'url'
+                                ? 'ИИ извлекает и анализирует стенограмму вебинара (15-30 сек)...'
+                                : 'ИИ обрабатывает запись (извлечение & анализ)...'}
                 </span>
               </>
             ) : (

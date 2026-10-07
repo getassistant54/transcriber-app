@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { safeParseOrRepairJson } from './jsonRepair.js';
 
 export function getGeminiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -31,11 +32,10 @@ export async function callGeminiModels(
 ): Promise<GeminiTranscribeResult | null> {
   const candidateModels = [
     preferredModel,
-    'gemini-3.6-flash',
     'gemini-3.5-flash',
-    'gemini-flash-latest',
     'gemini-3.5-flash-lite',
-    'gemini-3.8-flash',
+    'gemini-3-flash-preview',
+    'gemini-3.6-flash',
   ].filter((m, idx, self) => m && self.indexOf(m) === idx);
 
   for (const currentModel of candidateModels) {
@@ -47,23 +47,34 @@ export async function callGeminiModels(
           contents,
           config: {
             systemInstruction,
-            ...(hasMedia ? {} : { responseMimeType: 'application/json' }),
-            temperature: 0.3,
+            responseMimeType: 'application/json',
+            maxOutputTokens: 65536,
+            temperature: 0.2,
           },
         });
 
-        const responseText = response.text || '';
+        const candidate = response.candidates?.[0];
+        let responseText = response.text || '';
+        if (!responseText && candidate?.content?.parts) {
+          responseText = candidate.content.parts.map((p: any) => p.text).filter(Boolean).join('');
+        }
+
+        console.log(`[Gemini API] Response received. Length: ${responseText.length}, finishReason: ${candidate?.finishReason || 'unknown'}`);
+        if (!responseText) {
+          console.warn(`[Gemini API] Empty text from model. Candidate:`, JSON.stringify(candidate, null, 2));
+          throw new Error(`Модель Gemini вернула пустой ответ (finishReason: ${candidate?.finishReason || 'unknown'})`);
+        }
+
         const usage = response.usageMetadata;
         const inputTokens = usage?.promptTokenCount || 5000;
         const outputTokens = usage?.candidatesTokenCount || Math.round(responseText.length / 3.5);
 
-        let cleanedText = responseText.trim();
-        if (cleanedText.startsWith('```')) {
-          cleanedText = cleanedText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+        const parsedResponse = safeParseOrRepairJson(responseText);
+        if (!parsedResponse || typeof parsedResponse !== 'object') {
+          throw new Error('Не удалось разобрать JSON ответ модели Gemini');
         }
 
-        const parsedResponse = JSON.parse(cleanedText);
-        console.log(`[Gemini API] Successfully generated response using model "${currentModel}".`);
+        console.log(`[Gemini API] Successfully generated & validated response using model "${currentModel}".`);
 
         return {
           parsedResponse,
@@ -72,9 +83,19 @@ export async function callGeminiModels(
           modelUsed: currentModel,
         };
       } catch (err: any) {
-        console.warn(`[Gemini API] Model "${currentModel}" attempt ${attempt} error: ${err.message || err}`);
+        const errMsg = err.message || String(err);
+        console.warn(`[Gemini API] Model "${currentModel}" attempt ${attempt} error: ${errMsg}`);
+
+        // If quota exhausted or model not found, don't wait or retry - immediately try next candidate model
+        if (errMsg.includes('429') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('NOT_FOUND') || errMsg.includes('404')) {
+          console.warn(`[Gemini API] Skipping further attempts on "${currentModel}" due to quota/availability limits.`);
+          break;
+        }
+
         if (attempt < 2) {
-          await new Promise((res) => setTimeout(res, 2500));
+          // Wait briefly on temporary 503 demand spike
+          const waitMs = errMsg.includes('503') || errMsg.includes('demand') ? 3500 : 2000;
+          await new Promise((res) => setTimeout(res, waitMs));
         }
       }
     }

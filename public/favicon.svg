@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="50%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#9333ea" />
+    </linearGradient>
+    <linearGradient id="star" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+
+  <!-- Gradient Background with Rounded Corners -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)" />
+
+  <!-- Video Camera Icon (White) -->
+  <rect x="5" y="10" width="13" height="12" rx="2.5" fill="#ffffff" />
+  <path d="M19 13.5 L25 9.5 C25.6 9.1 26 9.4 26 10.1 L26 21.9 C26 22.6 25.6 22.9 25 22.5 L19 18.5 Z" fill="#ffffff" />
+
+  <!-- AI Sparkle / Star (Top Right) -->
+  <path d="M23 3 Q23 6 20 6 Q23 6 23 9 Q23 6 26 6 Q23 6 23 3 Z" fill="url(#star)" />
+  <circle cx="27" cy="3.5" r="1" fill="#fde047" />
+</svg>

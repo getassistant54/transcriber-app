@@ -14,11 +14,11 @@ export const HISTORY_FILE = path.join(DATA_DIR, 'transcriptions.json');
 // Default Admin Settings
 export let adminSettings: AdminSettings = {
   guestMaxDurationMinutes: 60,
-  guestDailyLimitCount: 3,
+  guestDailyLimitCount: 10,
   tokenMarkupPercent: 40, // 40% margin for owner
   usdToRubRate: 92.5,
   aiProvider: (process.env.AI_PROVIDER as 'gemini' | 'hydra') || 'gemini',
-  activeModel: process.env.AI_MODEL || 'gemini-3.6-flash',
+  activeModel: process.env.AI_MODEL || 'gemini-3.5-flash',
   hydraBaseUrl: process.env.HYDRA_BASE_URL || 'https://api.hydraai.ru/v1',
   hydraModel: process.env.HYDRA_DEFAULT_MODEL || 'gemini-2.5-flash',
   customSystemPrompt: `Ты — экспертный ИИ-транскрибатор и бизнес-аналитик высшего класса. Твоя задача — создать безупречную транскрипцию видео/аудио и глубокий, структурированный бизнес-анализ.`,
@@ -72,8 +72,9 @@ export function updateAdminSettings(newSettings: Partial<AdminSettings>) {
   adminSettings = { ...adminSettings, ...newSettings };
 }
 
-// In-Memory Users & Sessions
-export const users: Record<string, UserProfile> = {
+export const USERS_FILE = path.join(DATA_DIR, 'users.json');
+
+const DEFAULT_USERS: Record<string, UserProfile> = {
   'admin-1': {
     id: 'admin-1',
     email: 'admin@transcriber.ai',
@@ -83,6 +84,17 @@ export const users: Record<string, UserProfile> = {
     usedMinutesThisMonth: 120,
     totalTranscriptionsCount: 14,
     balanceRub: 15000,
+    createdAt: new Date().toISOString(),
+  },
+  'user-pro': {
+    id: 'user-pro',
+    email: 'pro@transcriber.ai',
+    name: 'Пользователь Pro',
+    role: 'standard_user',
+    planId: 'pro_individual',
+    usedMinutesThisMonth: 60,
+    totalTranscriptionsCount: 5,
+    balanceRub: 5000,
     createdAt: new Date().toISOString(),
   },
   'user-demo': {
@@ -98,6 +110,40 @@ export const users: Record<string, UserProfile> = {
     createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
   },
 };
+
+export function loadPersistedUsers(): Record<string, UserProfile> {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const data = fs.readFileSync(USERS_FILE, 'utf-8');
+      const loaded = JSON.parse(data);
+      if (loaded && typeof loaded === 'object') {
+        return { ...DEFAULT_USERS, ...loaded };
+      }
+    }
+  } catch (e) {
+    console.error('[Storage] Error reading users file:', e);
+  }
+  return { ...DEFAULT_USERS };
+}
+
+export function persistUsers(userRecords: Record<string, UserProfile>) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(USERS_FILE, JSON.stringify(userRecords, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('[Storage] Error saving users file:', e);
+  }
+}
+
+// Users loaded from disk
+export const users: Record<string, UserProfile> = loadPersistedUsers();
+
+export function saveUser(user: UserProfile) {
+  users[user.id] = user;
+  persistUsers(users);
+}
 
 export const guestSessions: Record<string, { usedMinutesToday: number; dailyCount: number; lastReset: string }> = {};
 
@@ -163,24 +209,31 @@ export function formatTimestamp(seconds: number): string {
 }
 
 export function parseVerbatimToSegments(verbatim: string): SpeakerSegment[] {
-  const lines = verbatim.split('\n').map((l) => l.trim()).filter(Boolean);
+  const chunks = verbatim.split(/(?=\[\d{1,2}:\d{2}\])/).map((c) => c.trim()).filter(Boolean);
   const segments: SpeakerSegment[] = [];
+  let currentSpeaker = 'Спикер 1';
 
-  for (const line of lines) {
-    const match = line.match(/^\[(\d{1,2}:\d{2})\]\s*(?:([^:]+):\s*)?(.*)$/);
-    if (match) {
-      const timeStr = match[1];
-      const [m, s] = timeStr.split(':').map(Number);
-      const speaker = match[2] ? match[2].trim() : 'Спикер';
-      const text = match[3] ? match[3].trim() : '';
-      if (text) {
-        segments.push({
-          speaker,
-          startTime: timeStr,
-          startSeconds: m * 60 + s,
-          text,
-        });
-      }
+  for (const chunk of chunks) {
+    const timeMatch = chunk.match(/^\[(\d{1,2}:\d{2})\]\s*([\s\S]*)$/);
+    if (!timeMatch) continue;
+
+    const timeStr = timeMatch[1];
+    const [m, s] = timeStr.split(':').map(Number);
+    let body = timeMatch[2].trim();
+
+    const speakerMatch = body.match(/^([А-Яа-яA-Za-z0-9_\s]{2,25}):\s*([\s\S]*)$/);
+    if (speakerMatch && !speakerMatch[1].includes(',') && !speakerMatch[1].includes('.')) {
+      currentSpeaker = speakerMatch[1].trim();
+      body = speakerMatch[2].trim();
+    }
+
+    if (body) {
+      segments.push({
+        speaker: currentSpeaker,
+        startTime: timeStr,
+        startSeconds: m * 60 + s,
+        text: body,
+      });
     }
   }
 
@@ -189,13 +242,19 @@ export function parseVerbatimToSegments(verbatim: string): SpeakerSegment[] {
 
 export function ensureCompleteSegments(record: TranscriptionRecord): TranscriptionRecord {
   const hasEllipses = record.segments?.some((s) => s.text?.endsWith('...'));
+  let updatedRecord = { ...record };
+
   if (!record.segments || record.segments.length <= 5 || hasEllipses) {
     if (record.verbatimTranscript) {
       const parsed = parseVerbatimToSegments(record.verbatimTranscript);
-      if (parsed.length > 0) {
-        return { ...record, segments: parsed };
+      if (parsed.length > 5) {
+        updatedRecord.segments = parsed;
+        const lastSeg = parsed[parsed.length - 1];
+        if (lastSeg && lastSeg.startSeconds > updatedRecord.durationSeconds) {
+          updatedRecord.durationSeconds = lastSeg.startSeconds + 5;
+        }
       }
     }
   }
-  return record;
+  return updatedRecord;
 }

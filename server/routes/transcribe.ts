@@ -21,6 +21,15 @@ import { buildAiPrompt } from '../ai/prompts.js';
 import { getGeminiClient, callGeminiModels, generateResilientFallback } from '../ai/gemini.js';
 import { prepareMediaForGemini } from '../ai/mediaUploader.js';
 import { callHydraAi } from '../ai/hydra.js';
+import {
+  transcribeLimiter,
+  verifyHoneypot,
+  checkDailyCircuitBreaker,
+  acquireJobLock,
+  releaseJobLock,
+  recordApiConsumption,
+  getClientIp,
+} from '../security.js';
 
 export const transcribeRouter = Router();
 
@@ -37,7 +46,30 @@ transcribeRouter.post('/zoom/check', async (req: Request, res: Response) => {
   }
 });
 
-transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
+transcribeRouter.post('/transcribe', transcribeLimiter, async (req: Request, res: Response) => {
+  // 1. Bot Honeypot Check
+  if (!verifyHoneypot(req)) {
+    return res.status(400).json({ error: 'Запрос отклонен системой защиты от спам-ботов.' });
+  }
+
+  // 2. Daily Wallet & Quota Circuit Breaker
+  const breaker = checkDailyCircuitBreaker();
+  if (!breaker.allowed) {
+    return res.status(429).json({ error: breaker.reason });
+  }
+
+  const userId = (req.headers['x-user-id'] as string) || 'guest';
+  const userRole = (req.headers['x-user-role'] as string) || 'guest';
+  const ip = getClientIp(req);
+
+  // 3. Concurrency Protection (1 active heavy job per IP / user)
+  const lockKey = `${userRole === 'guest' ? 'guest_' + ip : 'user_' + userId}`;
+  if (!acquireJobLock(lockKey)) {
+    return res.status(429).json({
+      error: 'У вас уже обрабатывается один медиафайл. Дождитесь завершения текущей расшифровки.',
+    });
+  }
+
   try {
     const {
       url,
@@ -53,10 +85,6 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
       customAiPrompt,
     } = req.body;
 
-    const userId = (req.headers['x-user-id'] as string) || 'guest';
-    const userRole = (req.headers['x-user-role'] as string) || 'guest';
-    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'guest_ip';
-
     // 1. Guest Limits Check
     if (userRole === 'guest') {
       const session = guestSessions[ip] || { usedMinutesToday: 0, dailyCount: 0, lastReset: new Date().toISOString() };
@@ -69,7 +97,7 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
 
       if (session.dailyCount >= adminSettings.guestDailyLimitCount) {
         return res.status(429).json({
-          error: `Вы исчерпали дневной лимит гостя (${adminSettings.guestDailyLimitCount} расшифровок). Зарегистрируйтесь для снятия ограничений!`,
+          error: `Вы исчерпали дневной лимит гостя (${adminSettings.guestDailyLimitCount} расшифровок). Переключитесь на роль «Администратор» или «Pro» в правом верхнем углу для работы без ограничений!`,
         });
       }
       guestSessions[ip] = session;
@@ -132,7 +160,7 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
     let parsedResponse: any = null;
     let inputTokens = 0;
     let outputTokens = 0;
-    let actualModelUsed = adminSettings.activeModel || 'gemini-3.6-flash';
+    let actualModelUsed = adminSettings.activeModel || 'gemini-3.5-flash';
     let apiSuccess = false;
 
     // 4. Provider Execution
@@ -171,7 +199,7 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
         const geminiResult = await callGeminiModels(
           ai,
           contents,
-          adminSettings.activeModel || 'gemini-3.6-flash',
+          adminSettings.activeModel || 'gemini-3.5-flash',
           adminSettings.customSystemPrompt,
           hasMedia
         );
@@ -190,12 +218,9 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
       }
     }
 
-    // 5. Fallback if AI providers failed
+    // 5. Validate AI response
     if (!apiSuccess || !parsedResponse) {
-      console.warn('[AI] Using resilient structured fallback generator.');
-      parsedResponse = generateResilientFallback(linkInfo.title, linkInfo.platform);
-      inputTokens = 8500;
-      outputTokens = 1900;
+      throw new Error('Модели Gemini временно перегружены на серверах Google (ошибка 503). Пожалуйста, нажмите «Запустить расшифровку» еще раз через 10 секунд.');
     }
 
     // 6. Calculate Segments & Final Duration
@@ -288,6 +313,8 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
       users[userId].totalTranscriptionsCount += 1;
     }
 
+    recordApiConsumption(tokenCost.estimatedCostUsd);
+
     res.json({
       success: true,
       record: newRecord,
@@ -295,5 +322,7 @@ transcribeRouter.post('/transcribe', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('[Transcribe Route] Error:', err);
     res.status(500).json({ error: 'Ошибка при расшифровке: ' + (err.message || 'Внутренняя ошибка сервера') });
+  } finally {
+    releaseJobLock(lockKey);
   }
 });

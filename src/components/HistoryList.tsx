@@ -200,9 +200,21 @@ export const HistoryList: React.FC<HistoryListProps> = ({
                   <span className="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800">
                     {item.analysis.actionItems.length} задач
                   </span>
-                  <span className="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 text-purple-300 font-mono">
-                    {item.tokenCost.estimatedCostRub} ₽
-                  </span>
+                  {item.preset && (
+                    <span className="px-2.5 py-1 rounded-md bg-indigo-950/40 border border-indigo-800/40 text-indigo-300 font-medium">
+                      {item.preset === 'screencast'
+                        ? 'Инструкция'
+                        : item.preset === 'sales_call'
+                          ? 'CustDev'
+                          : item.preset === 'lecture'
+                            ? 'Конспект'
+                            : item.preset === 'podcast'
+                              ? 'Медиа-пак'
+                              : item.preset === 'quick_summary'
+                                ? 'Экспресс'
+                                : 'Встреча'}
+                    </span>
+                  )}
                 </div>
               </div>
 

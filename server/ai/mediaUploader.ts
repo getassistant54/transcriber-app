@@ -27,87 +27,92 @@ export async function prepareMediaForGemini(
     else if (fileExt === 'mov') effectiveMimeType = 'video/quicktime';
     else if (fileExt === 'webm') effectiveMimeType = 'video/webm';
     else if (fileExt === 'm4a') effectiveMimeType = 'audio/m4a';
-    else if (fileExt === 'mp3') effectiveMimeType = 'audio/mp3';
+    else if (fileExt === 'mp3') effectiveMimeType = 'audio/mpeg';
     else if (fileExt === 'wav') effectiveMimeType = 'audio/wav';
-    else effectiveMimeType = isVideoFile ? 'video/mp4' : 'audio/mp3';
+    else effectiveMimeType = isVideoFile ? 'video/mp4' : 'audio/mpeg';
+  }
+
+  // Standardize audio/mp3 to audio/mpeg for Google Files API
+  if (effectiveMimeType === 'audio/mp3') {
+    effectiveMimeType = 'audio/mpeg';
   }
 
   console.log(`[Media] Processing file "${fileName || 'unnamed'}", mime: ${effectiveMimeType}, size: ${sizeMb.toFixed(2)} MB`);
 
-  // If video file OR larger than 15MB, use Google Files API
-  if (isVideoFile || sizeMb > 15) {
-    const actualExt = fileExt || (isVideoFile ? 'mp4' : 'mp3');
-    const scratchDir = path.join(process.cwd(), 'scratch');
-    if (!fs.existsSync(scratchDir)) {
-      fs.mkdirSync(scratchDir, { recursive: true });
-    }
-    const tempFilePath = path.join(scratchDir, `upload_${Date.now()}.${actualExt}`);
-    fs.writeFileSync(tempFilePath, fileBuffer);
+  // Use Google Files API for media files (audio & video)
+  // This ensures Google's native audio indexing pipeline is used and avoids massive inline Base64 payloads
+  const actualExt = fileExt || (isVideoFile ? 'mp4' : 'mp3');
+  const scratchDir = path.join(process.cwd(), 'scratch');
+  if (!fs.existsSync(scratchDir)) {
+    fs.mkdirSync(scratchDir, { recursive: true });
+  }
+  const tempFilePath = path.join(scratchDir, `upload_${Date.now()}.${actualExt}`);
+  fs.writeFileSync(tempFilePath, fileBuffer);
 
+  try {
     console.log(`[Gemini Files API] Uploading media to Google Cloud: ${tempFilePath} (${sizeMb.toFixed(2)} MB)...`);
-    let uploadedFile: any = null;
-    try {
-      uploadedFile = await ai.files.upload({
-        file: tempFilePath,
-        config: { mimeType: effectiveMimeType },
-      });
+    let uploadedFile: any = await ai.files.upload({
+      file: tempFilePath,
+      config: { mimeType: effectiveMimeType },
+    });
 
-      console.log(`[Gemini Files API] Uploaded: ${uploadedFile.name}, state: ${uploadedFile.state}`);
+    console.log(`[Gemini Files API] Uploaded: ${uploadedFile.name}, state: ${uploadedFile.state}`);
 
-      let pollCount = 0;
-      while (uploadedFile.state === 'PROCESSING' && pollCount < 60) {
-        console.log(`[Gemini Files API] Indexing media... waiting 3s (attempt ${pollCount + 1})`);
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        uploadedFile = await ai.files.get({ name: uploadedFile.name });
-        pollCount++;
-      }
-
-      if (uploadedFile.state === 'FAILED') {
-        throw new Error('Google Gemini не смог обработать медиафайл (статус FAILED). Проверьте формат видеокодека.');
-      }
-
-      const cleanup = async () => {
-        if (uploadedFile?.name) {
-          ai.files.delete({ name: uploadedFile.name }).catch((err) => {
-            console.warn('[Gemini Files API] Delete error:', err);
-          });
-        }
-        if (fs.existsSync(tempFilePath)) {
-          try {
-            fs.unlinkSync(tempFilePath);
-          } catch (e) {
-            console.warn('[Storage] Unlink error:', e);
-          }
-        }
-      };
-
-      return {
-        contentsPart: {
-          fileData: {
-            fileUri: uploadedFile.uri,
-            mimeType: uploadedFile.mimeType || effectiveMimeType,
-          },
-        },
-        cleanup,
-        sizeMb,
-      };
-    } catch (err) {
-      if (fs.existsSync(tempFilePath)) {
-        try { fs.unlinkSync(tempFilePath); } catch (e) {}
-      }
-      throw err;
+    let pollCount = 0;
+    while (uploadedFile.state === 'PROCESSING' && pollCount < 60) {
+      console.log(`[Gemini Files API] Indexing media... waiting 3s (attempt ${pollCount + 1})`);
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      uploadedFile = await ai.files.get({ name: uploadedFile.name });
+      pollCount++;
     }
-  } else {
-    // Smaller audio (< 15MB) passes inlineData directly
+
+    if (uploadedFile.state === 'FAILED') {
+      throw new Error('Google Gemini не смог обработать медиафайл (статус FAILED). Проверьте формат кодека.');
+    }
+
+    const cleanup = async () => {
+      if (uploadedFile?.name) {
+        ai.files.delete({ name: uploadedFile.name }).catch((err) => {
+          console.warn('[Gemini Files API] Delete error:', err);
+        });
+      }
+      if (fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+        } catch (e) {
+          console.warn('[Storage] Unlink error:', e);
+        }
+      }
+    };
+
     return {
       contentsPart: {
-        inlineData: {
-          mimeType: effectiveMimeType || 'audio/mp3',
-          data: cleanBase64,
+        fileData: {
+          fileUri: uploadedFile.uri,
+          mimeType: uploadedFile.mimeType || effectiveMimeType,
         },
       },
-      cleanup: async () => {},
+      cleanup,
       sizeMb,
     };
+  } catch (err: any) {
+    if (fs.existsSync(tempFilePath)) {
+      try { fs.unlinkSync(tempFilePath); } catch (e) {}
+    }
+    // If Files API fails and size is under 10MB, fallback to inlineData
+    if (sizeMb <= 10) {
+      console.warn(`[Gemini Files API] Upload failed (${err.message}). Falling back to inlineData...`);
+      return {
+        contentsPart: {
+          inlineData: {
+            mimeType: effectiveMimeType || 'audio/mpeg',
+            data: cleanBase64,
+          },
+        },
+        cleanup: async () => {},
+        sizeMb,
+      };
+    }
+    throw err;
   }
 }
